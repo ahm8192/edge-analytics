@@ -4,6 +4,7 @@ import com.ahmet.edge.core.AppError
 import com.ahmet.edge.data.local.*
 import com.ahmet.edge.data.remote.EdgeApi
 import com.ahmet.edge.domain.model.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -48,7 +49,14 @@ class MatchRepository @Inject constructor(
         }
 
     suspend fun refreshWindow(from: Instant, to: Instant): AppError? = try {
-        val resp = api.matches(from.toString(), to.toString())
+        // Render ucretsiz plan soguk baslangicta 30-60 sn uyanabilir; birkac kez dene.
+        var resp = api.matches(from.toString(), to.toString())
+        var tries = 0
+        while (!resp.isSuccessful && resp.code() >= 500 && tries < 3) {
+            tries++
+            delay(5000L * tries)
+            resp = api.matches(from.toString(), to.toString())
+        }
         if (resp.isSuccessful) {
             val body = resp.body()!!
             val now = Instant.now().epochSecond

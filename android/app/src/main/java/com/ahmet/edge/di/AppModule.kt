@@ -37,8 +37,11 @@ object AppModule {
             if (BuildConfig.DEBUG) addInterceptor(
                 HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
         }
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        // Render ucretsiz plan 15 dk sonra uykuya dalar; ilk istek 30-60 sn surebilir.
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(90, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build()
 
     @Provides @Singleton
