@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  5,
-    "versionName":  "0.2.5",
-    "notes":  "Lig sekmeleri, oranini gir -\u003e canli kenar payi + Kelly, model leanlari, gercek model aciklamasi."
+    "versionCode":  6,
+    "versionName":  "0.2.6",
+    "notes":  "Kalibre olasiliklar (lige ozel), Ust/Alt ve KG-var gercek, terfi eden takim olcekleme."
 }
