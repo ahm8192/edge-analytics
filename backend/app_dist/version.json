@@ -1,7 +1,7 @@
-{
-  "versionCode": 3,
-  "versionName": "0.2.3",
-  "url": "https://edge-analytics-api.onrender.com/app/download",
-  "notes": "Tasarim revizyonu: tam ekran, yeni mac kartlari, armalar, terminal alt bar.",
-  "mandatory": false
+﻿{
+    "mandatory":  false,
+    "url":  "https://edge-analytics-api.onrender.com/app/download",
+    "versionCode":  4,
+    "versionName":  "0.2.4",
+    "notes":  "Gercek takima-ozel oranlar, tum ekranlar acik (debug), daha cok lig."
 }
