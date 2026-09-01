@@ -15,8 +15,9 @@ android {
         applicationId = "com.ahmet.edge"
         minSdk = 26            // Play Billing 7 için 21 yeter; 26 modern API'ler için
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // OTA guncelleyici bunlari karsilastirir; derlemede -PVERSION_CODE ile verilir.
+        versionCode = (project.findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 2
+        versionName = (project.findProperty("VERSION_NAME") as String?) ?: "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

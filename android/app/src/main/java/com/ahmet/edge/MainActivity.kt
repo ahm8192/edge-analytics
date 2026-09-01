@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                         onPurchase = { offer -> billing.launch(this, offer, anonId.value) },
                         onRestore = { lifecycleScope.launch { billing.restorePurchases() } }
                     )
+                    com.ahmet.edge.update.UpdateGate()
                 }
             }
         }

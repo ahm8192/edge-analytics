@@ -3,8 +3,9 @@
 .env.*
 !.env.example
 
-# Derlenmis APK'lar
+# Derlenmis APK'lar (OTA icin sunulan tek dosya haric)
 *.apk
+!backend/app_dist/edge-latest.apk
 
 # Python
 __pycache__/

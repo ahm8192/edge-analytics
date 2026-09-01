@@ -10,6 +10,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from .billing.routes import router as billing_router
 from .api.routes.matches import router as matches_router
+from .updates import router as updates_router
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("edge.access")
@@ -42,6 +43,7 @@ async def _trace(request: Request, call_next):
 
 app.include_router(billing_router)
 app.include_router(matches_router, prefix="/v1")
+app.include_router(updates_router)
 
 
 @app.get("/health")
