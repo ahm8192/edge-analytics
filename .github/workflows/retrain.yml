@@ -1,0 +1,43 @@
+name: Haftalık model yeniden eğitimi
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"   # her Pazartesi 04:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bağımlılıklar
+        run: pip install --quiet numpy pandas scipy scikit-learn lightgbm
+
+      - name: Güncel maç verisini indir
+        run: |
+          curl -sSL -o Matches.csv \
+            https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data-2000-2025/main/data/Matches.csv
+          wc -l Matches.csv
+
+      - name: Parametreleri yeniden üret
+        run: python backend/scripts/export_params.py --csv Matches.csv --days 1000
+
+      - name: Değiştiyse commit'le
+        run: |
+          if git diff --quiet -- backend/app/model_data/params.json; then
+            echo "params.json değişmedi"
+          else
+            git config user.name  "edge-retrain-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add backend/app/model_data/params.json
+            git commit -m "chore: haftalık model yeniden eğitimi (params.json)"
+            git push
+          fi

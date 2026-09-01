@@ -34,6 +34,11 @@ data class MatchEntity(
     val modelConfidence: Double,
     val bestEdgePct: Double?,
     val hasValue: Boolean,
+    val pHome: Double? = null,
+    val pDraw: Double? = null,
+    val pAway: Double? = null,
+    val pOver25: Double? = null,
+    val pBtts: Double? = null,
     /** Önbellek tazeliği — çevrimdışıyken kullanıcıya "eski veri" uyarısı için. */
     val fetchedAtEpoch: Long
 )

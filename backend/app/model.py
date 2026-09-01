@@ -116,15 +116,30 @@ _ALIAS = {_norm(k): v for k, v in _ALIAS.items()}
 
 
 class _League:
-    __slots__ = ("name", "home_adv", "rho", "goal_mean", "teams", "_norm_index")
+    __slots__ = ("name", "home_adv", "rho", "goal_mean", "teams",
+                 "calib", "strength", "_norm_index")
 
     def __init__(self, name: str, d: dict):
         self.name = name
         self.home_adv = float(d["home_adv"])
         self.rho = float(d["rho"])
         self.goal_mean = float(d.get("goal_mean", 1.35))
+        self.strength = float(d.get("strength", 1500.0))
+        self.calib = d.get("calib", {})  # {outcome: [a, b]}
         self.teams = d["teams"]  # {name: [atk, def]}
         self._norm_index = {_norm(k): k for k in self.teams}
+
+    def cal(self, outcome: str, p: float) -> float:
+        ab = self.calib.get(outcome)
+        if not ab:
+            return p
+        a, b = ab
+        # Kalibrasyon çok düzse (ayrımı eziyor) ham olasılığı koru
+        if abs(a) < 0.35:
+            return p
+        pc = min(max(p, 1e-6), 1 - 1e-6)
+        x = math.log(pc / (1 - pc))
+        return 1.0 / (1.0 + math.exp(-(a * x + b)))
 
     def resolve(self, api_name: str) -> str | None:
         n = _norm(api_name)
@@ -148,22 +163,24 @@ class _League:
 
 
 _L_CACHE: dict[str, _League] = {}
-_GLOBAL_IDX: dict[str, tuple[float, float]] | None = None
+_GLOBAL_IDX: dict[str, tuple[float, float, float]] | None = None
+_ELO_K = 0.0016  # Elo puanı -> log-gol ölçeği
 
 
-def _global_index() -> dict[str, tuple[float, float]]:
-    """Tüm liglerden takım -> (atk, def). Terfi etmiş / kupa rakipleri için yedek."""
+def _global_index() -> dict[str, tuple[float, float, float]]:
+    """Tüm liglerden takım -> (atk, def, lig_gücü). Terfi eden / kupa rakibi için."""
     global _GLOBAL_IDX
     if _GLOBAL_IDX is None:
-        idx: dict[str, tuple[float, float]] = {}
-        for d in _LEAGUES.values():
+        idx: dict[str, tuple[float, float, float]] = {}
+        for nm, d in _LEAGUES.items():
+            s = float(d.get("strength", 1500.0))
             for name, (atk, dfc) in d["teams"].items():
-                idx.setdefault(_norm(name), (float(atk), float(dfc)))
+                idx.setdefault(_norm(name), (float(atk), float(dfc), s))
         _GLOBAL_IDX = idx
     return _GLOBAL_IDX
 
 
-def _global_lookup(api_name: str) -> tuple[float, float] | None:
+def _global_lookup(api_name: str) -> tuple[float, float, float] | None:
     idx = _global_index()
     n = _norm(api_name)
     if n in _ALIAS and _norm(_ALIAS[n]) in idx:
@@ -204,11 +221,13 @@ def _components(comp_code: str, home_name: str, away_name: str) -> dict | None:
     if atk_h is None:
         r = _global_lookup(home_name)
         if r:
-            atk_h, def_h, g_h = r[0], r[1], True
+            adj = max(min((r[2] - lg.strength) * _ELO_K, 0.6), -0.6)
+            atk_h, def_h, g_h = r[0] + adj, r[1] + adj, True
     if atk_a is None:
         r = _global_lookup(away_name)
         if r:
-            atk_a, def_a, g_a = r[0], r[1], True
+            adj = max(min((r[2] - lg.strength) * _ELO_K, 0.6), -0.6)
+            atk_a, def_a, g_a = r[0] + adj, r[1] + adj, True
     atk_h = 0.0 if atk_h is None else float(atk_h)
     def_h = 0.0 if def_h is None else float(def_h)
     atk_a = 0.0 if atk_a is None else float(atk_a)
@@ -228,16 +247,81 @@ def _components(comp_code: str, home_name: str, away_name: str) -> dict | None:
     }
 
 
-def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
-    """Maç için lambda_home / lambda_away / rho / model_confidence."""
+_MAXG = 10
+_LNFACT = [0.0] * (_MAXG + 2)
+for _i in range(1, _MAXG + 2):
+    _LNFACT[_i] = _LNFACT[_i - 1] + math.log(_i)
+
+
+def _pois(k: int, lam: float) -> float:
+    return math.exp(-lam + k * math.log(lam) - _LNFACT[k]) if lam > 0 else (1.0 if k == 0 else 0.0)
+
+
+def _tau(x: int, y: int, lam: float, mu: float, rho: float) -> float:
+    if x == 0 and y == 0:
+        return 1.0 - lam * mu * rho
+    if x == 0 and y == 1:
+        return 1.0 + lam * rho
+    if x == 1 and y == 0:
+        return 1.0 + mu * rho
+    if x == 1 and y == 1:
+        return 1.0 - rho
+    return 1.0
+
+
+def _score_probs(lam: float, mu: float, rho: float) -> dict:
+    ph = [_pois(i, lam) for i in range(_MAXG + 1)]
+    pa = [_pois(j, mu) for j in range(_MAXG + 1)]
+    tot = h = d = a = ov = bt = 0.0
+    for i in range(_MAXG + 1):
+        for j in range(_MAXG + 1):
+            v = ph[i] * pa[j] * _tau(i, j, lam, mu, rho)
+            tot += v
+            if i > j:
+                h += v
+            elif i == j:
+                d += v
+            else:
+                a += v
+            if i + j >= 3:
+                ov += v
+            if i >= 1 and j >= 1:
+                bt += v
+    return {"home": h / tot, "draw": d / tot, "away": a / tot,
+            "over25": ov / tot, "btts": bt / tot}
+
+
+def probs(comp_code: str, home_name: str, away_name: str) -> dict:
+    """Kalibre 1X2 + Ü2.5 + KG-var olasılıkları + ham lambda'lar."""
     c = _components(comp_code, home_name, away_name)
     if c is None:
+        r = _score_probs(1.35, 1.10, -0.03)
         return {"lambda_home": 1.35, "lambda_away": 1.10, "rho": -0.03,
-                "model_confidence": 0.30, "modeled": False}
-    return {"lambda_home": round(c["lam_home"], 3),
-            "lambda_away": round(c["lam_away"], 3),
-            "rho": round(c["rho"], 3), "model_confidence": c["conf"],
-            "modeled": bool(c["have_h"] and c["have_a"])}
+                "model_confidence": 0.30, "modeled": False,
+                "p_home": round(r["home"], 4), "p_draw": round(r["draw"], 4),
+                "p_away": round(r["away"], 4), "p_over25": round(r["over25"], 4),
+                "p_btts": round(r["btts"], 4)}
+
+    lg = c["lg"]
+    raw = _score_probs(c["lam_home"], c["lam_away"], c["rho"])
+    ph = lg.cal("home", raw["home"])
+    pd_ = lg.cal("draw", raw["draw"])
+    pa = lg.cal("away", raw["away"])
+    s = ph + pd_ + pa
+    ph, pd_, pa = ph / s, pd_ / s, pa / s
+    return {
+        "lambda_home": round(c["lam_home"], 3), "lambda_away": round(c["lam_away"], 3),
+        "rho": round(c["rho"], 3), "model_confidence": c["conf"],
+        "modeled": bool(c["have_h"] and c["have_a"]),
+        "p_home": round(ph, 4), "p_draw": round(pd_, 4), "p_away": round(pa, 4),
+        "p_over25": round(lg.cal("over25", raw["over25"]), 4),
+        "p_btts": round(lg.cal("btts", raw["btts"]), 4),
+    }
+
+
+def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
+    """Geriye uyumluluk: probs() çağırır."""
+    return probs(comp_code, home_name, away_name)
 
 
 def explain(comp_code: str, home_name: str, away_name: str) -> dict:

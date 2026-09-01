@@ -70,6 +70,10 @@ private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", TR)
 private val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", TR)
 
 private fun oneXtwo(m: Match): Triple<Double, Double, Double> {
+    // Sunucudan kalibre olasılık geldiyse onu kullan
+    if (m.pHome != null && m.pDraw != null && m.pAway != null) {
+        return Triple(m.pHome, m.pDraw, m.pAway)
+    }
     val mat = PoissonMath.scoreMatrix(m.lambdaHome ?: 1.35, m.lambdaAway ?: 1.10, m.rho)
     val d = Markets.oneXtwo(mat)
     return Triple(d["HOME"] ?: 0.34, d["DRAW"] ?: 0.33, d["AWAY"] ?: 0.33)

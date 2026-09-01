@@ -60,7 +60,13 @@ data class MatchDto(
     val rho: Double = -0.03,
     @SerialName("model_confidence") val modelConfidence: Double = 1.0,
     @SerialName("best_edge_pct") val bestEdgePct: Double? = null,
-    @SerialName("has_value") val hasValue: Boolean = false
+    @SerialName("has_value") val hasValue: Boolean = false,
+    // Sunucudan gelen kalibre olasılıklar (varsa cihazda hesaplamaya tercih edilir)
+    @SerialName("p_home") val pHome: Double? = null,
+    @SerialName("p_draw") val pDraw: Double? = null,
+    @SerialName("p_away") val pAway: Double? = null,
+    @SerialName("p_over25") val pOver25: Double? = null,
+    @SerialName("p_btts") val pBtts: Double? = null
 )
 
 @Serializable data class LeagueDto(val id: Long, val name: String, val country: String,

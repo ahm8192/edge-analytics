@@ -138,16 +138,18 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
                 "TIMED": "SCHEDULED", "IN_PLAY": "LIVE", "PAUSED": "LIVE",
                 "SUSPENDED": "LIVE", "AWARDED": "FINISHED", "CANCELED": "POSTPONED",
             }.get(raw_status, raw_status if raw_status in {"SCHEDULED", "LIVE", "FINISHED", "POSTPONED"} else "SCHEDULED")
-            pred = model.lambdas(code, home.get("name", ""), away.get("name", ""))
+            pred = model.probs(code, home.get("name", ""), away.get("name", ""))
             _MATCH_CTX[int(item["id"])] = (code, home.get("name", ""), away.get("name", ""))
             matches.append({
                 "id": int(item["id"]), "league_id": comp_id,
                 "home_team_id": home_id, "away_team_id": away_id,
                 "kickoff": item["utcDate"], "status": status,
                 "home_goals": full.get("home"), "away_goals": full.get("away"),
-                # Takıma özel Dixon-Coles beklentileri (app/model_data/params.json)
+                # Takıma özel, kalibre Dixon-Coles (app/model_data/params.json)
                 "lambda_home": pred["lambda_home"], "lambda_away": pred["lambda_away"],
                 "rho": pred["rho"], "model_confidence": pred["model_confidence"],
+                "p_home": pred["p_home"], "p_draw": pred["p_draw"], "p_away": pred["p_away"],
+                "p_over25": pred["p_over25"], "p_btts": pred["p_btts"],
                 "best_edge_pct": None, "has_value": False,
             })
 

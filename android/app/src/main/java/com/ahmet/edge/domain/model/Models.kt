@@ -25,7 +25,13 @@ data class Match(
     /** Örneklem ve veri kalitesinden türeyen güven. Kelly'yi ölçekler. */
     val modelConfidence: Double = 1.0,
     val bestEdgePct: Double? = null,
-    val hasValue: Boolean = false
+    val hasValue: Boolean = false,
+    /** Sunucudan gelen kalibre olasılıklar (null ise cihazda hesaplanır). */
+    val pHome: Double? = null,
+    val pDraw: Double? = null,
+    val pAway: Double? = null,
+    val pOver25: Double? = null,
+    val pBtts: Double? = null
 )
 
 enum class MatchStatus { SCHEDULED, LIVE, FINISHED, POSTPONED }

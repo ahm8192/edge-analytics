@@ -63,7 +63,10 @@ class MatchDetailViewModel @Inject constructor(
         }
 
         val m = PoissonMath.scoreMatrix(match.lambdaHome, match.lambdaAway, match.rho)
-        val p1x2 = Markets.oneXtwo(m)
+        // Sunucudan kalibre 1X2 geldiyse onu kullan, yoksa matristen
+        val p1x2 = if (match.pHome != null && match.pDraw != null && match.pAway != null)
+            mapOf("HOME" to match.pHome, "DRAW" to match.pDraw, "AWAY" to match.pAway)
+        else Markets.oneXtwo(m)
 
         // Ücretsiz katman çarpımsal, abone Shin ile temizler (madde 78, 79)
         val useShin = ent.allows(Feature.CALIBRATED_PROB)
@@ -91,8 +94,14 @@ class MatchDetailViewModel @Inject constructor(
             marketProbs = implied,
             prices = prices,
             edges = edges,
-            overUnder = if (ent.allows(Feature.ALL_MARKETS)) Markets.overUnder(m, 2.5) else emptyMap(),
-            btts = if (ent.allows(Feature.ALL_MARKETS)) Markets.btts(m) else emptyMap(),
+            overUnder = if (ent.allows(Feature.ALL_MARKETS)) {
+                match.pOver25?.let { mapOf("OVER" to it, "UNDER" to 1.0 - it) }
+                    ?: Markets.overUnder(m, 2.5)
+            } else emptyMap(),
+            btts = if (ent.allows(Feature.ALL_MARKETS)) {
+                match.pBtts?.let { mapOf("YES" to it, "NO" to 1.0 - it) }
+                    ?: Markets.btts(m)
+            } else emptyMap(),
             handicap = if (ent.allows(Feature.ALL_MARKETS)) Markets.asianHandicap(m, -0.5) else emptyMap(),
             topScores = if (ent.allows(Feature.ALL_MARKETS)) Markets.topScores(m) else emptyList(),
             context = if (ent.allows(Feature.CONTEXT_ADJUST)) context else emptyList(),

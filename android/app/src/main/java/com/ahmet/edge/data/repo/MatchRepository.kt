@@ -80,7 +80,8 @@ class MatchRepository @Inject constructor(
                 MatchEntity(m.id, m.leagueId, m.homeTeamId, m.awayTeamId,
                     Instant.parse(m.kickoff).epochSecond, m.status, m.homeGoals, m.awayGoals,
                     m.lambdaHome, m.lambdaAway, m.rho, m.modelConfidence,
-                    m.bestEdgePct, m.hasValue, now)
+                    m.bestEdgePct, m.hasValue,
+                    m.pHome, m.pDraw, m.pAway, m.pOver25, m.pBtts, now)
             })
             android.util.Log.i("EDGE", "refreshWindow DB yazildi, tamam")
             null
@@ -166,6 +167,8 @@ private fun MatchWithTeams.toDomain(): Match? {
         homeGoals = match.homeGoals, awayGoals = match.awayGoals,
         lambdaHome = match.lambdaHome, lambdaAway = match.lambdaAway, rho = match.rho,
         modelConfidence = match.modelConfidence,
-        bestEdgePct = match.bestEdgePct, hasValue = match.hasValue
+        bestEdgePct = match.bestEdgePct, hasValue = match.hasValue,
+        pHome = match.pHome, pDraw = match.pDraw, pAway = match.pAway,
+        pOver25 = match.pOver25, pBtts = match.pBtts
     )
 }
