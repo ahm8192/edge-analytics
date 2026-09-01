@@ -1,0 +1,14 @@
+services:
+  edge-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edge-analytics-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      PORT: "8000"
+      FOOTBALL_DATA_COMPETITIONS: "PL,BL1,SA"
+    restart: unless-stopped

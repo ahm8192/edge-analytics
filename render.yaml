@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: edge-analytics-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: FOOTBALL_DATA_TOKEN
+        sync: false
+      # Ucretsiz plan dakikada ~10 istek verir; her lig ayri istektir.
+      # Once az lig ile basla, sorunsuz calisinca panelden artir.
+      - key: FOOTBALL_DATA_COMPETITIONS
+        value: PL,BL1,SA
+      - key: FOOTBALL_DATA_CACHE_TTL
+        value: "120"
+      - key: FOOTBALL_DATA_REQUEST_SPACING
+        value: "1.5"

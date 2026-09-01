@@ -1,0 +1,22 @@
+# Sirlar - asla repoya girmesin
+.env
+.env.*
+!.env.example
+
+# Derlenmis APK'lar
+*.apk
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
