@@ -9,11 +9,10 @@ services:
     envVars:
       - key: FOOTBALL_DATA_TOKEN
         sync: false
-      # Ucretsiz plan dakikada ~10 istek verir; her lig ayri istektir.
-      # Once az lig ile basla, sorunsuz calisinca panelden artir.
+      # Ucretsiz plan dakikada ~10 istek; onbellek + throttle ile 9 lig guvenli.
       - key: FOOTBALL_DATA_COMPETITIONS
-        value: PL,BL1,SA
+        value: PL,ELC,BL1,SA,PD,FL1,DED,PPL,BSA
       - key: FOOTBALL_DATA_CACHE_TTL
-        value: "120"
+        value: "180"
       - key: FOOTBALL_DATA_REQUEST_SPACING
-        value: "1.5"
+        value: "1.2"
