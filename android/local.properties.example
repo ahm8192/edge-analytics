@@ -1,0 +1,2 @@
+# Android SDK yolunu kendi bilgisayarınıza göre ayarlayın.
+sdk.dir=/absolute/path/to/Android/Sdk

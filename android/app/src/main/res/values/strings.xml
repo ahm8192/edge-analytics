@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Edge</string>
+    <string name="tab_matches">Maçlar</string>
+    <string name="tab_value">Değer</string>
+    <string name="tab_bankroll">Kasa</string>
+    <string name="tab_log">Günlük</string>
+    <string name="quota_remaining">Bugün %1$d analiz hakkın kaldı</string>
+    <string name="quota_exhausted">Günlük analiz hakkın doldu. Yarın sıfırlanır.</string>
+    <string name="upgrade_cta">Planları gör</string>
+    <string name="restore_purchases">Satın alımları geri yükle</string>
+    <string name="offline_notice">Bağlantı yok — kayıtlı analizler gösteriliyor.</string>
+</resources>
