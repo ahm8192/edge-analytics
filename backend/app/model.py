@@ -192,19 +192,14 @@ def _league_for_code(code: str) -> _League | None:
     return lg
 
 
-def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
-    """Maç için (lambda_home, lambda_away, rho, model_confidence)."""
+def _components(comp_code: str, home_name: str, away_name: str) -> dict | None:
     lg = _league_for_code(comp_code)
     if lg is None:
-        return {"lambda_home": 1.35, "lambda_away": 1.10, "rho": -0.03,
-                "model_confidence": 0.30, "modeled": False}
-
+        return None
     h = lg.resolve(home_name)
     a = lg.resolve(away_name)
     atk_h, def_h = (lg.teams[h] if h else (None, None))
     atk_a, def_a = (lg.teams[a] if a else (None, None))
-
-    # ligde bulunamayanı tüm veri havuzunda ara (terfi eden / kupa rakibi)
     g_h = g_a = False
     if atk_h is None:
         r = _global_lookup(home_name)
@@ -214,27 +209,75 @@ def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
         r = _global_lookup(away_name)
         if r:
             atk_a, def_a, g_a = r[0], r[1], True
-    atk_h = 0.0 if atk_h is None else atk_h
-    def_h = 0.0 if def_h is None else def_h
-    atk_a = 0.0 if atk_a is None else atk_a
-    def_a = 0.0 if def_a is None else def_a
+    atk_h = 0.0 if atk_h is None else float(atk_h)
+    def_h = 0.0 if def_h is None else float(def_h)
+    atk_a = 0.0 if atk_a is None else float(atk_a)
+    def_a = 0.0 if def_a is None else float(def_a)
 
-    lam_home = math.exp(atk_h - def_a + lg.home_adv)
-    lam_away = math.exp(atk_a - def_h)
-    lam_home = min(max(lam_home, 0.15), 5.0)
-    lam_away = min(max(lam_away, 0.15), 5.0)
+    lam_home = min(max(math.exp(atk_h - def_a + lg.home_adv), 0.15), 5.0)
+    lam_away = min(max(math.exp(atk_a - def_h), 0.15), 5.0)
 
-    have_h = bool(h) or g_h
-    have_a = bool(a) or g_a
-    # ligde eşleşme tam güven; global yedek biraz düşük; hiç yok en düşük
-    if h and a:
-        conf = 0.62
-    elif have_h and have_a:
-        conf = 0.52
-    elif have_h or have_a:
-        conf = 0.42
-    else:
-        conf = 0.32
-    return {"lambda_home": round(lam_home, 3), "lambda_away": round(lam_away, 3),
-            "rho": round(lg.rho, 3), "model_confidence": conf,
-            "modeled": bool(have_h and have_a)}
+    have_h, have_a = bool(h) or g_h, bool(a) or g_a
+    conf = 0.62 if (h and a) else (0.52 if (have_h and have_a)
+                                   else (0.42 if (have_h or have_a) else 0.32))
+    return {
+        "lg": lg, "lam_home": lam_home, "lam_away": lam_away,
+        "atk_h": atk_h, "def_h": def_h, "atk_a": atk_a, "def_a": def_a,
+        "home_adv": lg.home_adv, "rho": lg.rho, "conf": conf,
+        "have_h": have_h, "have_a": have_a,
+    }
+
+
+def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
+    """Maç için lambda_home / lambda_away / rho / model_confidence."""
+    c = _components(comp_code, home_name, away_name)
+    if c is None:
+        return {"lambda_home": 1.35, "lambda_away": 1.10, "rho": -0.03,
+                "model_confidence": 0.30, "modeled": False}
+    return {"lambda_home": round(c["lam_home"], 3),
+            "lambda_away": round(c["lam_away"], 3),
+            "rho": round(c["rho"], 3), "model_confidence": c["conf"],
+            "modeled": bool(c["have_h"] and c["have_a"])}
+
+
+def explain(comp_code: str, home_name: str, away_name: str) -> dict:
+    """Modelin bu maç için gol beklentisini nasıl kurduğunun dökümü."""
+    c = _components(comp_code, home_name, away_name)
+    if c is None:
+        return {"lambda_home": 1.35, "lambda_away": 1.10, "rho": -0.03,
+                "model_confidence": 0.30, "context_factors": [], "explanation": {}}
+
+    def factor(label, value, impact, note):
+        return {"label": label, "value": value, "impact": round(impact, 3), "note": note}
+
+    # Etki = gol beklentisine yaklaşık katkı (exp lineerize)
+    base = c["lg"].goal_mean
+    fs = [
+        factor("Ev sahibi hücum", f"{c['atk_h']:+.2f}", c["atk_h"] * base,
+               "Lig ortalamasına göre gol üretimi"),
+        factor("Deplasman savunma", f"{c['def_a']:+.2f}", -c["def_a"] * base,
+               "Rakip savunmanın gol yeme eğilimi (ters)"),
+        factor("Ev avantajı", f"{c['home_adv']:+.2f}", c["home_adv"] * base,
+               "Bu ligde ev sahibi olmanın katkısı"),
+        factor("Deplasman hücum", f"{c['atk_a']:+.2f}", c["atk_a"] * base,
+               "Konuk takımın gol üretimi"),
+        factor("Ev sahibi savunma", f"{c['def_h']:+.2f}", -c["def_h"] * base,
+               "Ev sahibi savunmanın rakibi durdurma gücü (ters)"),
+    ]
+    fs.sort(key=lambda x: -abs(x["impact"]))
+    return {
+        "match_id": 0,
+        "lambda_home": round(c["lam_home"], 3),
+        "lambda_away": round(c["lam_away"], 3),
+        "rho": round(c["rho"], 3),
+        "model_confidence": c["conf"],
+        "context_factors": fs,
+        "explanation": {
+            "home_attack": round(c["atk_h"], 3),
+            "home_defence": round(c["def_h"], 3),
+            "away_attack": round(c["atk_a"], 3),
+            "away_defence": round(c["def_a"], 3),
+            "home_advantage": round(c["home_adv"], 3),
+            "matched": 1.0 if (c["have_h"] and c["have_a"]) else 0.0,
+        },
+    }

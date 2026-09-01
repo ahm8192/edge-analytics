@@ -31,6 +31,10 @@ _rate_lock = threading.Lock()
 _last_request_at = 0.0
 
 
+# match_id -> (competition_code, home_name, away_name) — /analysis için
+_MATCH_CTX: dict[int, tuple[str, str, str]] = {}
+
+
 def _throttle() -> None:
     """İki football-data isteği arasında en az _REQUEST_SPACING saniye bırakır."""
     global _last_request_at
@@ -135,6 +139,7 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
                 "SUSPENDED": "LIVE", "AWARDED": "FINISHED", "CANCELED": "POSTPONED",
             }.get(raw_status, raw_status if raw_status in {"SCHEDULED", "LIVE", "FINISHED", "POSTPONED"} else "SCHEDULED")
             pred = model.lambdas(code, home.get("name", ""), away.get("name", ""))
+            _MATCH_CTX[int(item["id"])] = (code, home.get("name", ""), away.get("name", ""))
             matches.append({
                 "id": int(item["id"]), "league_id": comp_id,
                 "home_team_id": home_id, "away_team_id": away_id,
@@ -160,7 +165,13 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
 
 
 def default_analysis(match_id: int) -> dict:
-    return {"match_id": match_id, "lambda_home": 1.35, "lambda_away": 1.10,
-            "rho": -0.03, "model_confidence": 0.35,
-            "context_factors": [], "explanation": {"source": 0.0},
-            "quota_remaining": -1}
+    ctx = _MATCH_CTX.get(int(match_id))
+    if ctx is None:
+        return {"match_id": match_id, "lambda_home": 1.35, "lambda_away": 1.10,
+                "rho": -0.03, "model_confidence": 0.30,
+                "context_factors": [], "explanation": {}, "quota_remaining": -1}
+    code, home, away = ctx
+    out = model.explain(code, home, away)
+    out["match_id"] = int(match_id)
+    out["quota_remaining"] = -1
+    return out
