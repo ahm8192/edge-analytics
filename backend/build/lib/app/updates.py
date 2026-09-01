@@ -13,20 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 router = APIRouter(tags=["updates"])
 
-
-def _dist_dir() -> str:
-    here = os.path.dirname(os.path.abspath(__file__))
-    for cand in (
-        os.path.join(os.path.dirname(here), "app_dist"),  # backend/app_dist
-        os.path.join(os.getcwd(), "app_dist"),            # /app/app_dist (Docker)
-        "/app/app_dist",
-    ):
-        if os.path.isdir(cand):
-            return cand
-    return os.path.join(os.path.dirname(here), "app_dist")
-
-
-_DIST = _dist_dir()
+_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app_dist")
 
 
 @router.get("/app/version")

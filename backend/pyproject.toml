@@ -1,6 +1,10 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "edge-backend"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
@@ -17,3 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "ruff>=0.6"]
+
+# app_dist/ (OTA APK'si) ve scripts/ paket degil - sadece app/ build edilir.
+[tool.setuptools.packages.find]
+include = ["app", "app.*"]
