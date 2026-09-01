@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -135,14 +136,25 @@ fun MatchListScreen(
 
 @Composable
 fun ScreenHeader(title: String, right: String? = null, sub: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(16.dp, 14.dp, 16.dp, 12.dp)) {
+    Column(
+        Modifier.fillMaxWidth()
+            .statusBarsPadding()
+            .padding(16.dp, 18.dp, 16.dp, 14.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
+                    .background(Ink.accent.copy(alpha = 0.14f))
+                    .border(1.dp, Ink.accent.copy(alpha = 0.35f), RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) { Text("λ", style = DataStyle.copy(fontSize = 15.sp), color = Ink.accent) }
+            Spacer(Modifier.width(10.dp))
             Text(title, style = MaterialTheme.typography.headlineSmall, color = Ink.text,
                 modifier = Modifier.weight(1f))
             if (right != null) Text(right, style = LabelMono, color = Ink.faint)
         }
         if (sub != null) {
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(6.dp))
             Text(sub, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
         }
     }
@@ -172,30 +184,49 @@ private fun QuotaStrip(remaining: Int, onUpgrade: () -> Unit) {
 fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     val (h, d, a) = remember(m.id, m.lambdaHome, m.lambdaAway) { oneXtwo(m) }
     val kickoff = remember(m.id) { m.kickoff.atZone(ZoneId.systemDefault()).format(timeFmt) }
+    val pick = when (maxOf(h, d, a)) { h -> 0; d -> 1; else -> 2 }
+    val homeName = m.home.shortName.ifBlank { m.home.name }
+    val awayName = m.away.shortName.ifBlank { m.away.name }
 
-    Panel(onClick = onClick, padding = PaddingValues(14.dp, 12.dp, 14.dp, 12.dp)) {
+    Panel(onClick = onClick, padding = PaddingValues(16.dp, 13.dp, 16.dp, 14.dp)) {
+        // üst: lig · saat  ————  güven  ⟩
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(m.league.name.uppercase(TR), style = LabelMono.copy(fontSize = 10.sp),
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false))
-            Text("  ·  $kickoff", style = DataStyle.copy(fontSize = 11.sp), color = Ink.muted)
+            Text("  ·  $kickoff", style = DataStyle.copy(fontSize = 11.sp), color = Ink.muted,
+                maxLines = 1)
             Spacer(Modifier.weight(1f))
             ConfidenceMeter(m.modelConfidence)
+            Spacer(Modifier.width(9.dp))
+            Text("⟩", color = Ink.faint, style = MaterialTheme.typography.titleMedium)
         }
 
-        Spacer(Modifier.height(11.dp))
+        Spacer(Modifier.height(13.dp))
 
-        TeamLine(m.home.crestUrl, m.home.shortName.ifBlank { m.home.name })
-        Spacer(Modifier.height(7.dp))
-        TeamLine(m.away.crestUrl, m.away.shortName.ifBlank { m.away.name })
+        // eşleşme
+        MatchupSide(m.home.crestUrl, homeName, 1.0 / h.coerceAtLeast(0.01), pick == 0)
+        Spacer(Modifier.height(9.dp))
+        MatchupSide(m.away.crestUrl, awayName, 1.0 / a.coerceAtLeast(0.01), pick == 2)
 
+        Spacer(Modifier.height(14.dp))
+        Hairline()
         Spacer(Modifier.height(12.dp))
-        ProbBar3(h, d, a)
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ProbLegendRow(h, d, a, Modifier.weight(1f))
-            if (showEdge && m.hasValue && m.bestEdgePct != null) {
-                Spacer(Modifier.width(10.dp))
+
+        // 1 / X / 2 kolonları — modelin seçimi vurgulu
+        Row(Modifier.fillMaxWidth()) {
+            ProbColumn("1", h, pick == 0, Modifier.weight(1f))
+            ProbColumn("X", d, pick == 1, Modifier.weight(1f))
+            ProbColumn("2", a, pick == 2, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+        ProbBar3(h, d, a, height = 5.dp)
+
+        if (showEdge && m.hasValue && m.bestEdgePct != null) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("DEĞER", style = LabelMono, color = Ink.signal)
+                Spacer(Modifier.weight(1f))
                 EdgeTag(m.bestEdgePct)
             }
         }
@@ -203,12 +234,33 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TeamLine(crest: String?, name: String) {
+private fun MatchupSide(crest: String?, name: String, fairOdds: Double, isPick: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        TeamCrest(crest, name, 24.dp)
-        Spacer(Modifier.width(10.dp))
-        Text(name, style = MaterialTheme.typography.titleMedium, color = Ink.text,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        TeamCrest(crest, name, 30.dp)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            name,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (isPick) Ink.text else Ink.muted,
+            fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(fmt(fairOdds), style = DataStyle.copy(fontSize = 14.sp),
+            color = if (isPick) Ink.text else Ink.faint)
+    }
+}
+
+@Composable
+private fun ProbColumn(k: String, v: Double, isPick: Boolean, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(k, style = LabelMono, color = if (isPick) Ink.accent else Ink.faint)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            pct0(v),
+            style = DataStyle.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+            color = if (isPick) Ink.text else Ink.muted
+        )
     }
 }
 

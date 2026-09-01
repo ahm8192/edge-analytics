@@ -48,7 +48,8 @@ fun BankrollScreen(onUpgrade: () -> Unit, vm: BankrollViewModel = hiltViewModel(
     val clv by vm.clv.collectAsState()
     val byMarket by vm.byMarket.collectAsState()
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+        .verticalScroll(rememberScrollState()).padding(16.dp, 12.dp, 16.dp, 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)) {
 
         Text("Kasa", style = MaterialTheme.typography.headlineSmall, color = Ink.text)

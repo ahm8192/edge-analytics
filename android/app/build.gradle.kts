@@ -66,8 +66,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // Takım armaları (crest_url) için görsel yükleme
+    // Takım armaları (crest_url) için görsel yükleme (.png + .svg)
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-svg:2.7.0")
 
     // --- Google Play Billing -------------------------------------------
     // NOT: yayın öncesi en güncel sürümü doğrula; Google eski sürümleri

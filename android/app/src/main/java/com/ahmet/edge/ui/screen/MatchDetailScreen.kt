@@ -1,6 +1,7 @@
 package com.ahmet.edge.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,7 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ahmet.edge.billing.Feature
 import com.ahmet.edge.billing.LocalEntitlement
@@ -54,36 +57,25 @@ fun MatchDetailScreen(
         )
     }
 
-    Scaffold(
-        containerColor = Ink.base,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(m?.let { "${it.home.name} – ${it.away.name}" } ?: "Maç",
-                            style = MaterialTheme.typography.titleMedium, color = Ink.text)
-                        m?.let {
-                            Text("${it.league.name} · ${dateFmt.format(it.kickoff.atZone(ZoneId.systemDefault()))}",
-                                style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                        }
-                    }
-                },
-                navigationIcon = { TextButton(onBack) { Text("‹", color = Ink.muted) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink.base)
-            )
-        }
-    ) { pad ->
+    Column(Modifier.fillMaxSize().background(Ink.base)) {
+        DetailHeader(
+            onBack = onBack,
+            home = m?.home?.let { it.shortName.ifBlank { it.name } } ?: "",
+            away = m?.away?.let { it.shortName.ifBlank { it.name } } ?: "",
+            homeCrest = m?.home?.crestUrl,
+            awayCrest = m?.away?.crestUrl,
+            meta = m?.let {
+                "${it.league.name.uppercase(java.util.Locale("tr"))} · " +
+                    dateFmt.format(it.kickoff.atZone(ZoneId.systemDefault()))
+            } ?: ""
+        )
 
-        when (val e = ui.error) {
-            is AppError.QuotaExceeded -> QuotaWall(e, onUpgrade, Modifier.padding(pad))
-            is AppError.Offline -> {} // önbellekten göstermeye devam
-            else -> {}
-        }
+        (ui.error as? AppError.QuotaExceeded)?.let { QuotaWall(it, onUpgrade, Modifier) }
 
         LazyColumn(
-            Modifier.padding(pad).fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 40.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // ---- Ücretsiz: maç sonucu olasılığı -------------------------
             item {
@@ -251,13 +243,48 @@ fun MatchDetailScreen(
 }
 
 @Composable
+private fun DetailHeader(
+    onBack: () -> Unit,
+    home: String, away: String,
+    homeCrest: String?, awayCrest: String?,
+    meta: String,
+) {
+    Column(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp, 10.dp, 16.dp, 16.dp)
+    ) {
+        Text("‹  GERİ", style = com.ahmet.edge.ui.theme.LabelMono, color = Ink.muted,
+            modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onBack).padding(vertical = 6.dp, horizontal = 2.dp))
+        Spacer(Modifier.height(14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TeamCrest(homeCrest, home, 30.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(home, style = MaterialTheme.typography.titleLarge, color = Ink.text,
+                        maxLines = 1)
+                }
+                Spacer(Modifier.height(9.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TeamCrest(awayCrest, away, 30.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(away, style = MaterialTheme.typography.titleLarge, color = Ink.text,
+                        maxLines = 1)
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(meta, style = com.ahmet.edge.ui.theme.LabelMono.copy(fontSize = 10.sp),
+            color = Ink.faint)
+    }
+    Hairline()
+}
+
+@Composable
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, color = Ink.text)
-        Spacer(Modifier.height(10.dp))
-        Surface(shape = RoundedCornerShape(12.dp), color = Ink.surface) {
-            Column(Modifier.padding(12.dp), content = content)
-        }
+        SectionLabel(title)
+        Panel(padding = PaddingValues(14.dp)) { content() }
     }
 }
 

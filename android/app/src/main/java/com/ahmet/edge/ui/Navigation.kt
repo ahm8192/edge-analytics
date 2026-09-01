@@ -54,11 +54,12 @@ fun EdgeNavGraph(
 
     Scaffold(
         containerColor = Ink.base,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = { if (showBar) BottomBar(nav, entry?.destination?.hierarchy) }
     ) { pad ->
         NavHost(
             nav, startDestination = Dest.Matches.route,
-            modifier = Modifier.padding(pad)
+            modifier = Modifier.padding(pad).fillMaxSize().background(Ink.base)
         ) {
             composable(Dest.Matches.route) {
                 MatchListScreen(
@@ -99,7 +100,8 @@ private fun BottomBar(
         Hairline()
         Row(
             Modifier.fillMaxWidth().background(Ink.base)
-                .padding(top = 6.dp, bottom = 10.dp)
+                .navigationBarsPadding()
+                .padding(top = 8.dp, bottom = 8.dp)
         ) {
             Dest.tabs.forEach { d ->
                 val selected = hierarchy?.any { it.route == d.route } == true

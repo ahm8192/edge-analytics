@@ -11,6 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -172,25 +175,28 @@ private fun LegendItem(k: String, v: Double, c: Color) {
 
 // ------------------------------------------------------------------ arma
 @Composable
-fun TeamCrest(url: String?, name: String, size: Dp = 26.dp) {
-    val shape = RoundedCornerShape(5.dp)
-    Box(
-        Modifier.size(size).clip(shape).background(Ink.raised).border(1.dp, Ink.line, shape),
-        contentAlignment = Alignment.Center
-    ) {
-        if (!url.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(url)
-                    .crossfade(true).build(),
-                contentDescription = name,
-                modifier = Modifier.size(size * 0.72f)
-            )
-        } else {
+fun TeamCrest(url: String?, name: String, size: Dp = 30.dp) {
+    var failed by remember(url) { mutableStateOf(false) }
+    if (url.isNullOrBlank() || failed) {
+        val shape = RoundedCornerShape(6.dp)
+        Box(
+            Modifier.size(size).clip(shape).background(Ink.raised)
+                .border(1.dp, Ink.line, shape),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                name.take(1).uppercase(Locale.US),
-                style = LabelMono.copy(fontSize = (size.value * 0.42f).sp), color = Ink.muted
+                name.trim().take(2).uppercase(Locale.US),
+                style = LabelMono.copy(fontSize = (size.value * 0.34f).sp), color = Ink.muted
             )
         }
+    } else {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current).data(url)
+                .crossfade(true).build(),
+            contentDescription = name,
+            onError = { failed = true },
+            modifier = Modifier.size(size)
+        )
     }
 }
 

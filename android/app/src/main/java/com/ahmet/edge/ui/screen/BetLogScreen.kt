@@ -42,7 +42,7 @@ fun BetLogScreen(onUpgrade: () -> Unit, vm: BetLogViewModel = hiltViewModel()) {
     val bets by vm.bets.collectAsState()
 
     if (!ent.allows(Feature.BET_LOG)) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(16.dp, 12.dp, 16.dp, 16.dp)) {
             Text("Günlük", style = MaterialTheme.typography.headlineSmall, color = Ink.text)
             Spacer(Modifier.height(16.dp))
             LockedCard(Feature.BET_LOG, onUpgrade)
@@ -54,7 +54,8 @@ fun BetLogScreen(onUpgrade: () -> Unit, vm: BetLogViewModel = hiltViewModel()) {
         return
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 40.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             Column {
