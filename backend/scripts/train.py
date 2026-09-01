@@ -30,7 +30,7 @@ log = logging.getLogger("train")
 OUTCOME = {"HOME": 0, "DRAW": 1, "AWAY": 2}
 
 
-def load_matches(conn, league_code: str = "Süper Lig") -> pd.DataFrame:
+def load_matches(conn, league_code: str = "Premier League") -> pd.DataFrame:
     df = pd.read_sql_query("""
         SELECT m.id, m.kickoff_utc, m.season,
                th.canonical_name AS home, ta.canonical_name AS away,

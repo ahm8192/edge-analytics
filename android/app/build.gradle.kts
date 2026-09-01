@@ -61,8 +61,12 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Takım armaları (crest_url) için görsel yükleme
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // --- Google Play Billing -------------------------------------------
     // NOT: yayın öncesi en güncel sürümü doğrula; Google eski sürümleri
