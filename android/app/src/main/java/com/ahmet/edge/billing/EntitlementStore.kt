@@ -37,6 +37,13 @@ class EntitlementStore @Inject constructor(
     }
 
     val state: Flow<EntitlementState> = context.dataStore.data.map { p ->
+        // DEBUG derlemede tum ekranlar gorulebilsin (Play Billing henuz yok).
+        if (com.ahmet.edge.BuildConfig.DEBUG) {
+            return@map EntitlementState(
+                tier = Tier.ELITE, storedTier = Tier.ELITE,
+                quotas = mapOf("match_analysis" to -1, "odds_refresh" to -1),
+            )
+        }
         val now = Instant.now().epochSecond
         val storedTier = Tier.from(p[Keys.TIER])
         val expires = p[Keys.EXPIRES] ?: 0L

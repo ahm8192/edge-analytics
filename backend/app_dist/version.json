@@ -1,7 +1,7 @@
-﻿{
-    "mandatory":  false,
-    "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  4,
-    "versionName":  "0.2.4",
-    "notes":  "Gercek takima-ozel oranlar, tum ekranlar acik (debug), daha cok lig."
+{
+  "versionCode": 4,
+  "versionName": "0.2.4",
+  "url": "https://edge-analytics-api.onrender.com/app/download",
+  "notes": "Gercek takima-ozel oranlar, tum ekranlar acik, daha cok lig.",
+  "mandatory": false
 }

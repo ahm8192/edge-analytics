@@ -34,8 +34,12 @@ def app_version():
     path = os.path.join(_DIST, "version.json")
     if not os.path.exists(path):
         return JSONResponse({"versionCode": 0, "versionName": "0", "notes": ""})
-    with open(path, encoding="utf-8") as f:
-        return JSONResponse(json.load(f))
+    try:
+        # utf-8-sig: PowerShell'in eklediği BOM'u da tolere eder
+        with open(path, encoding="utf-8-sig") as f:
+            return JSONResponse(json.load(f))
+    except (OSError, ValueError):
+        return JSONResponse({"versionCode": 0, "versionName": "0", "notes": ""})
 
 
 @router.get("/app/download")
