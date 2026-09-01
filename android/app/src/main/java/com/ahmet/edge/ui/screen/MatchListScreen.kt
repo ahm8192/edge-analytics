@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,17 +87,28 @@ fun MatchListScreen(
     val quota = ent.quotas["match_analysis"] ?: 0
     val showEdge = ent.allows(Feature.EDGE_DETECTION)
 
-    val grouped = remember(matches) {
-        matches.groupBy { it.kickoff.atZone(ZoneId.systemDefault()).toLocalDate() }
+    var league by rememberSaveable { mutableStateOf<String?>(null) }
+    val leagues = remember(matches) {
+        matches.map { it.league.name }.distinct().sorted()
+    }
+    val filtered = remember(matches, league) {
+        if (league == null) matches else matches.filter { it.league.name == league }
+    }
+    val grouped = remember(filtered) {
+        filtered.groupBy { it.kickoff.atZone(ZoneId.systemDefault()).toLocalDate() }
             .toSortedMap()
     }
 
     Column(Modifier.fillMaxSize().background(Ink.base)) {
         ScreenHeader(
             title = "Önümüzdeki 7 gün",
-            right = if (matches.isNotEmpty()) "${matches.size} MAÇ"
+            right = if (matches.isNotEmpty()) "${filtered.size} MAÇ"
             else if (refreshing) "YÜKLENİYOR" else null
         )
+        if (leagues.size > 1) {
+            LeagueTabs(leagues, league) { league = it }
+            Hairline()
+        }
 
         LazyColumn(
             Modifier.fillMaxSize(),
@@ -111,11 +123,11 @@ fun MatchListScreen(
                     modifier = Modifier.padding(vertical = 2.dp))
             }
 
-            if (matches.isEmpty()) {
+            if (filtered.isEmpty()) {
                 if (refreshing) items(5) { Spacer(Modifier.height(2.dp)); Skeleton(Modifier.height(116.dp)) }
                 else item {
                     EmptyState(
-                        "Bu aralıkta maç yok",
+                        if (league != null) "$league — maç yok" else "Bu aralıkta maç yok",
                         "Önümüzdeki 7 günde takip edilen liglerde fikstür bulunamadı.",
                         action = { GhostButton("Yenile", vm::refresh, Modifier.width(160.dp)) }
                     )
@@ -131,6 +143,34 @@ fun MatchListScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LeagueTabs(leagues: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+    androidx.compose.foundation.lazy.LazyRow(
+        Modifier.fillMaxWidth().background(Ink.base),
+        contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        item { LeagueChip("TÜMÜ", selected == null) { onSelect(null) } }
+        items(leagues) { lg ->
+            LeagueChip(lg.uppercase(TR), selected == lg) { onSelect(lg) }
+        }
+    }
+}
+
+@Composable
+private fun LeagueChip(text: String, active: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.clip(RoundedCornerShape(5.dp))
+            .background(if (active) Ink.accent else Ink.raised)
+            .then(if (active) Modifier else Modifier.border(1.dp, Ink.line, RoundedCornerShape(5.dp)))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 11.dp, vertical = 7.dp)
+    ) {
+        Text(text, style = LabelMono.copy(fontSize = 10.sp),
+            color = if (active) Ink.base else Ink.muted)
     }
 }
 
@@ -276,17 +316,18 @@ fun ValueBoardScreen(
 
     Column(Modifier.fillMaxSize().background(Ink.base)) {
         ScreenHeader(
-            "Değer tablosu",
+            "Model leanları",
             right = if (ent.allows(Feature.EDGE_DETECTION) && matches.isNotEmpty())
-                "${matches.size} FIRSAT" else null,
-            sub = "Modelin piyasayı geçtiği maçlar, kenar payına göre sıralı."
+                "${matches.size} MAÇ" else null,
+            sub = "Modelin en güçlü kanaatleri — en net sonuç × güven. Maça girip " +
+                "oranını yazarak kenar payını gör."
         )
 
         if (!ent.allows(Feature.EDGE_DETECTION)) {
             LockedFeaturePane(
-                "Değer tablosu PRO",
-                "Model, piyasa oranının işaret ettiğinden daha olası gördüğü maçları " +
-                    "burada toplar ve kenar payına göre sıralar. %2 altı gürültü sayılır, girmez.",
+                "Model leanları · PRO",
+                "Modelin en net gördüğü maçları tek listede sıralar. Bir maça girip " +
+                    "kendi bahisçinin oranını yazınca kenar payını ve önerilen tutarı hesaplar.",
                 onUpgrade
             )
             return
@@ -300,8 +341,8 @@ fun ValueBoardScreen(
             items(matches, key = { it.id }) { m -> MatchCard(m, true) { onOpen(m.id) } }
             if (matches.isEmpty()) item {
                 EmptyState(
-                    "Şu anda değerli maç yok",
-                    "Bu iyi bir haber — model zorlama bahis üretmiyor. Fikstür ilerledikçe kontrol et."
+                    "Yaklaşan maç yok",
+                    "Fikstür geldikçe modelin kanaatleri burada sıralanır."
                 )
             }
         }
@@ -332,6 +373,13 @@ fun LockedFeaturePane(title: String, body: String, onUpgrade: () -> Unit) {
 
 @HiltViewModel
 class ValueBoardViewModel @Inject constructor(repo: MatchRepository) : ViewModel() {
-    val matches = repo.observeValueBoard()
+    // Modelin en güçlü kanaatleri: en olası sonucun olasılığına göre sıralı.
+    val matches = repo.observeUpcoming(10)
+        .map { list ->
+            list.sortedByDescending { m ->
+                val (h, d, a) = oneXtwo(m)
+                maxOf(h, d, a) * m.modelConfidence
+            }.take(40)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }

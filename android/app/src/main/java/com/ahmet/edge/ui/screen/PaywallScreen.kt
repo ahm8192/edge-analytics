@@ -49,22 +49,26 @@ fun PaywallScreen(
                     style = MaterialTheme.typography.displaySmall, color = Ink.text)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Ücretsiz sürüm maçın olasılığını verir. Abonelik, o olasılığın " +
-                    "oranı yenip yenmediğini ve ne kadar yatırman gerektiğini söyler.",
+                    "Ücretsiz sürüm her maçın kalibre olasılığını verir. Abonelik, o " +
+                    "olasılığı kendi oranınla karşılaştırıp kenar payını, tutarı ve " +
+                    "uzun vadeli başarını ölçmene yarar.",
                     style = MaterialTheme.typography.bodyMedium, color = Ink.muted
                 )
             }
             TextButton(onClick = onClose) { Text("Kapat", color = Ink.faint) }
         }
 
-        ValueRow("Değer tespiti",
-            "Modelin piyasadan daha iyi olduğu maçları işaretler. Diğerlerini oynamamanı söyler.")
+        ValueRow("Oranını gir → kenar payı",
+            "Kendi bahisçinin oranını yaz; model olasılığı ile karşılaştırıp pozitif " +
+            "kenar var mı anında söyler.")
         ValueRow("Kelly tutar önerisi",
-            "Ne kadar yatıracağını kasana ve kenarına göre hesaplar. Sezgiyle değil.")
-        ValueRow("CLV takibi",
-            "Kapanış oranını yenip yenmediğini ölçer. Kârdan daha dürüst bir başarı göstergesi.")
-        ValueRow("Kadro ve bağlam düzeltmesi",
-            "Sakat oyuncu, hakem profili, fikstür yoğunluğu, hava — hepsi olasılığa işlenir.")
+            "Kenar ve kasana göre ne kadar yatıracağını hesaplar. Çeyrek Kelly, sezgi değil.")
+        ValueRow("Kasa + CLV takibi",
+            "Her bahsi kaydet; kapanış oranını yenip yenmediğini zamanla ölçer. " +
+            "Kârdan daha dürüst başarı göstergesi.")
+        ValueRow("Tüm marketler + model açıklaması",
+            "Alt/üst, handikap, KG var, skor dağılımı ve modelin bu maçı neye göre " +
+            "kurduğunun dökümü.")
 
         Spacer(Modifier.height(4.dp))
 

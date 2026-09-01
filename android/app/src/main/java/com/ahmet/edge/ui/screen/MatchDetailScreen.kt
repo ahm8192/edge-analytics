@@ -1,6 +1,7 @@
 package com.ahmet.edge.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -77,7 +78,38 @@ fun MatchDetailScreen(
             contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 40.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // ---- Ücretsiz: maç sonucu olasılığı -------------------------
+            // ---- Model projeksiyonu ------------------------------------
+            m?.let { mm ->
+                item {
+                    Section("Model projeksiyonu") {
+                        Row(Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly) {
+                            StatCell("BEK. GOL EV", fmt(mm.lambdaHome ?: 0.0), Ink.text)
+                            StatCell("BEK. GOL DEP", fmt(mm.lambdaAway ?: 0.0), Ink.text)
+                            StatCell("GÜVEN", pct0(mm.modelConfidence), Ink.muted)
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        val p = ui.probs1x2
+                        ProbBar3(p["HOME"] ?: .34, p["DRAW"] ?: .33, p["AWAY"] ?: .33)
+                        Spacer(Modifier.height(8.dp))
+                        ProbLegendRow(p["HOME"] ?: .34, p["DRAW"] ?: .33, p["AWAY"] ?: .33)
+                    }
+                }
+            }
+
+            // ---- Oranını gir -> canlı edge/Kelly ----------------------
+            item {
+                OddsEntryCard(
+                    fair = mapOf(
+                        "1" to (ui.probs1x2["HOME"]?.let { if (it > 0) 1.0 / it else 0.0 } ?: 0.0),
+                        "X" to (ui.probs1x2["DRAW"]?.let { if (it > 0) 1.0 / it else 0.0 } ?: 0.0),
+                        "2" to (ui.probs1x2["AWAY"]?.let { if (it > 0) 1.0 / it else 0.0 } ?: 0.0),
+                    ),
+                    onCompute = { h, d, a -> vm.setManualOdds(h, d, a) }
+                )
+            }
+
+            // ---- Maç sonucu olasılığı (oran girildiyse edge ile) ------
             item {
                 Section("Maç sonucu") {
                     listOf("HOME" to "1", "DRAW" to "X", "AWAY" to "2").forEach { (key, label) ->
@@ -94,7 +126,7 @@ fun MatchDetailScreen(
                     }
                     if (ui.marginPct > 0) {
                         Spacer(Modifier.height(6.dp))
-                        Text("Bahisçi marjı ${pct(ui.marginPct)} — adil oran bu çıkarıldıktan sonra hesaplandı.",
+                        Text("Girilen oranların marjı ${pct(ui.marginPct)} — adil oran bu çıkarıldıktan sonra.",
                             style = MaterialTheme.typography.bodySmall, color = Ink.faint)
                     }
                 }
@@ -103,27 +135,39 @@ fun MatchDetailScreen(
             // ---- PRO: değer tespiti -------------------------------------
             item {
                 if (ent.allows(Feature.EDGE_DETECTION)) {
-                    Section("Değer") {
-                        val value = ui.edges.filter { it.isValue }
-                        if (value.isEmpty()) {
-                            Text("Bu maçta model piyasayı yenmiyor. Oynamamak da bir karardır.",
+                    Section("Kenar payı") {
+                        if (ui.edges.isEmpty()) {
+                            Text("Yukarıdan oranını gir — modelin olasılığı ile senin " +
+                                "oranının ima ettiği olasılık karşılaştırılsın.",
                                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-                        } else value.forEach { e ->
-                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween) {
-                                StatChip(labelOf(e.selection), signedPct(e.edgePct), Ink.signal)
-                                StatChip("oran", fmt(e.takenPrice))
-                                StatChip("güven", when (e.confidence) {
-                                    Confidence.HIGH -> "yüksek"
-                                    Confidence.MEDIUM -> "orta"
-                                    Confidence.LOW -> "düşük"
-                                })
-                                TextButton(onClick = { recording = e }) {
-                                    Text("Kaydet", color = Ink.signal,
-                                        style = MaterialTheme.typography.labelMedium)
+                        } else {
+                            ui.edges.sortedByDescending { it.edgePct }.forEach { e ->
+                                val pos = e.edgePct > 0
+                                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text(labelOf(e.selection), Modifier.width(28.dp),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Ink.text)
+                                    StatCell("KENAR", signedPct(e.edgePct),
+                                        if (pos) Ink.signal else Ink.caution, Modifier.weight(1f))
+                                    StatCell("ORAN", fmt(e.takenPrice), Ink.text, Modifier.weight(1f))
+                                    StatCell("GÜVEN", when (e.confidence) {
+                                        Confidence.HIGH -> "YÜKSEK"; Confidence.MEDIUM -> "ORTA"
+                                        Confidence.LOW -> "DÜŞÜK"
+                                    }, Ink.muted, Modifier.weight(1f))
+                                    if (e.isValue) {
+                                        Text("KAYDET", style = com.ahmet.edge.ui.theme.LabelMono,
+                                            color = Ink.accent,
+                                            modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                                                .clickable { recording = e }
+                                                .padding(horizontal = 8.dp, vertical = 6.dp))
+                                    }
                                 }
                             }
+                            Spacer(Modifier.height(4.dp))
+                            Text("Pozitif kenar = model bu sonucu senin oranının ima " +
+                                "ettiğinden daha olası görüyor. Garanti değil.",
+                                style = MaterialTheme.typography.bodySmall, color = Ink.faint)
                         }
                     }
                 } else LockedCard(Feature.EDGE_DETECTION, onUpgrade)
@@ -285,6 +329,75 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
     Column(Modifier.fillMaxWidth()) {
         SectionLabel(title)
         Panel(padding = PaddingValues(14.dp)) { content() }
+    }
+}
+
+@Composable
+private fun OddsEntryCard(fair: Map<String, Double>, onCompute: (Double, Double, Double) -> Unit) {
+    var h by remember { mutableStateOf("") }
+    var d by remember { mutableStateOf("") }
+    var a by remember { mutableStateOf("") }
+    val hv = h.replace(',', '.').toDoubleOrNull()
+    val dv = d.replace(',', '.').toDoubleOrNull()
+    val av = a.replace(',', '.').toDoubleOrNull()
+    val ready = (hv ?: 0.0) > 1.0 && (dv ?: 0.0) > 1.0 && (av ?: 0.0) > 1.0
+
+    Column(Modifier.fillMaxWidth()) {
+        SectionLabel("Oranını gir")
+        Panel(padding = PaddingValues(14.dp)) {
+            Text("Kendi bahisçinde gördüğün 1 / X / 2 oranını yaz — model kenar payını " +
+                "ve önerilen tutarı ona göre hesaplar.",
+                style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                OddsField("1", h, fair["1"]) { h = it }
+                OddsField("X", d, fair["X"]) { d = it }
+                OddsField("2", a, fair["2"]) { a = it }
+            }
+            Spacer(Modifier.height(12.dp))
+            if (ready) {
+                PrimaryButton("Hesapla", onClick = { onCompute(hv!!, dv!!, av!!) })
+            } else {
+                Text("Üç oranı da gir", style = com.ahmet.edge.ui.theme.LabelMono,
+                    color = Ink.faint, modifier = Modifier.padding(vertical = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun OddsField(label: String, value: String, fair: Double?, onChange: (String) -> Unit) {
+    Column(Modifier.width(96.dp)) {
+        Row {
+            Text(label, style = com.ahmet.edge.ui.theme.LabelMono, color = Ink.faint)
+            if (fair != null && fair > 1.0) {
+                Spacer(Modifier.weight(1f))
+                Text("adil ${fmt(fair)}", style = com.ahmet.edge.ui.theme.LabelMono
+                    .copy(fontSize = 9.sp), color = Ink.faint)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        androidx.compose.foundation.text.BasicTextField(
+            value = value,
+            onValueChange = { s -> onChange(s.filter { it.isDigit() || it == '.' || it == ',' }.take(5)) },
+            singleLine = true,
+            textStyle = com.ahmet.edge.ui.theme.DataStyle.copy(
+                fontSize = 16.sp, color = Ink.text),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(Ink.accent),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+            decorationBox = { inner ->
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(5.dp))
+                        .background(Ink.raised).border(1.dp, Ink.lineStrong, RoundedCornerShape(5.dp))
+                        .padding(horizontal = 10.dp, vertical = 9.dp)
+                ) {
+                    if (value.isEmpty()) Text("—", style = com.ahmet.edge.ui.theme.DataStyle
+                        .copy(fontSize = 16.sp), color = Ink.faint)
+                    inner()
+                }
+            }
+        )
     }
 }
 

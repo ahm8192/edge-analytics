@@ -31,6 +31,13 @@ class MatchRepository @Inject constructor(
     fun observeValueBoard(): Flow<List<Match>> =
         matchDao.observeValueBoard(Instant.now().epochSecond).map { it.mapNotNull { r -> r.toDomain() } }
 
+    /** Önümüzdeki maçlar — "model leanları" tablosu için (value şartı yok). */
+    fun observeUpcoming(days: Long = 10): Flow<List<Match>> {
+        val now = Instant.now()
+        return matchDao.observeWindow(now.epochSecond, now.plusSeconds(days * 86400).epochSecond)
+            .map { it.mapNotNull { r -> r.toDomain() } }
+    }
+
     fun observeMatch(id: Long): Flow<Match?> =
         matchDao.observeOne(id).map { it?.toDomain() }
 
@@ -109,6 +116,15 @@ class MatchRepository @Inject constructor(
 
     suspend fun prune() =
         matchDao.pruneOlderThan(Instant.now().minusSeconds(90L * 86400).epochSecond)
+
+    /** Kullanıcının kendi bahisçisinde gördüğü oranı girer — edge/Kelly bundan hesaplanır. */
+    suspend fun setLocalOdds(matchId: Long, market: String, prices: Map<String, Double>) {
+        val now = Instant.now().epochSecond
+        oddsDao.upsert(prices.map { (sel, p) ->
+            OddsEntity(matchId, "MANUEL", market, null, sel, p, now,
+                isClosing = false, isSharp = false)
+        })
+    }
 
     /** Sunucudan gelen 402/429'u kullanıcıya anlamlı hataya çevirir. */
     private fun mapError(code: Int, body: String?): AppError {

@@ -114,6 +114,12 @@ class MatchDetailViewModel @Inject constructor(
 
     fun dismissError() { error.value = null }
 
+    /** Kullanıcı kendi bahisçisinin oranını girer -> edge/Kelly canlanır. */
+    fun setManualOdds(home: Double, draw: Double, away: Double) = viewModelScope.launch {
+        matches.setLocalOdds(matchId, "1X2",
+            mapOf("HOME" to home, "DRAW" to draw, "AWAY" to away))
+    }
+
     /** Seçilen tarafın oran hareketi — PRO. Ekran açıkken tembel yüklenir. */
     private val selectedForChart = MutableStateFlow("HOME")
 
