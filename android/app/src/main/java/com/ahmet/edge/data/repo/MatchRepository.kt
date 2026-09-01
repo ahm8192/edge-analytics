@@ -26,10 +26,10 @@ class MatchRepository @Inject constructor(
 
     fun observeWindow(from: Instant, to: Instant): Flow<List<Match>> =
         matchDao.observeWindow(from.epochSecond, to.epochSecond)
-            .map { rows -> rows.map { it.toDomain() } }
+            .map { rows -> rows.mapNotNull { it.toDomain() } }
 
     fun observeValueBoard(): Flow<List<Match>> =
-        matchDao.observeValueBoard(Instant.now().epochSecond).map { it.map { r -> r.toDomain() } }
+        matchDao.observeValueBoard(Instant.now().epochSecond).map { it.mapNotNull { r -> r.toDomain() } }
 
     fun observeMatch(id: Long): Flow<Match?> =
         matchDao.observeOne(id).map { it?.toDomain() }
@@ -49,6 +49,7 @@ class MatchRepository @Inject constructor(
         }
 
     suspend fun refreshWindow(from: Instant, to: Instant): AppError? = try {
+        android.util.Log.i("EDGE", "refreshWindow basladi from=$from to=$to base=${com.ahmet.edge.BuildConfig.API_BASE}")
         // Render ucretsiz plan soguk baslangicta 30-60 sn uyanabilir; birkac kez dene.
         var resp = api.matches(from.toString(), to.toString())
         var tries = 0
@@ -57,8 +58,10 @@ class MatchRepository @Inject constructor(
             delay(5000L * tries)
             resp = api.matches(from.toString(), to.toString())
         }
+        android.util.Log.i("EDGE", "refreshWindow yanit code=${resp.code()} ok=${resp.isSuccessful}")
         if (resp.isSuccessful) {
             val body = resp.body()!!
+            android.util.Log.i("EDGE", "refreshWindow body matches=${body.matches.size} leagues=${body.leagues.size} teams=${body.teams.size}")
             val now = Instant.now().epochSecond
             matchDao.upsertLeagues(body.leagues.map {
                 LeagueEntity(it.id, it.name, it.country, it.tier, it.dataQuality, it.strengthCoef)
@@ -72,9 +75,11 @@ class MatchRepository @Inject constructor(
                     m.lambdaHome, m.lambdaAway, m.rho, m.modelConfidence,
                     m.bestEdgePct, m.hasValue, now)
             })
+            android.util.Log.i("EDGE", "refreshWindow DB yazildi, tamam")
             null
         } else mapError(resp.code(), resp.errorBody()?.string())
     } catch (e: Exception) {
+        android.util.Log.e("EDGE", "refreshWindow HATA: ${e.javaClass.name}: ${e.message}", e)
         AppError.Offline
     }
 
@@ -131,15 +136,20 @@ private fun kotlinx.serialization.json.JsonElement.jsonFieldOrNull(key: String):
         (detail[key] as? kotlinx.serialization.json.JsonPrimitive)?.content
     }.getOrNull()
 
-private fun MatchWithTeams.toDomain() = Match(
-    id = match.id,
-    league = League(league.id, league.name, league.country, league.tier, league.dataQuality),
-    home = Team(home.id, home.name, home.shortName, home.crestUrl),
-    away = Team(away.id, away.name, away.shortName, away.crestUrl),
-    kickoff = Instant.ofEpochSecond(match.kickoffEpoch),
-    status = MatchStatus.valueOf(match.status),
-    homeGoals = match.homeGoals, awayGoals = match.awayGoals,
-    lambdaHome = match.lambdaHome, lambdaAway = match.lambdaAway, rho = match.rho,
-    modelConfidence = match.modelConfidence,
-    bestEdgePct = match.bestEdgePct, hasValue = match.hasValue
-)
+private fun MatchWithTeams.toDomain(): Match? {
+    val lg = league ?: return null
+    val h = home ?: return null
+    val a = away ?: return null
+    return Match(
+        id = match.id,
+        league = League(lg.id, lg.name, lg.country, lg.tier, lg.dataQuality),
+        home = Team(h.id, h.name, h.shortName, h.crestUrl),
+        away = Team(a.id, a.name, a.shortName, a.crestUrl),
+        kickoff = Instant.ofEpochSecond(match.kickoffEpoch),
+        status = runCatching { MatchStatus.valueOf(match.status) }.getOrDefault(MatchStatus.SCHEDULED),
+        homeGoals = match.homeGoals, awayGoals = match.awayGoals,
+        lambdaHome = match.lambdaHome, lambdaAway = match.lambdaAway, rho = match.rho,
+        modelConfidence = match.modelConfidence,
+        bestEdgePct = match.bestEdgePct, hasValue = match.hasValue
+    )
+}

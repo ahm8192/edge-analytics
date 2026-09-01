@@ -14,8 +14,14 @@ class AuthInterceptor @Inject constructor(
     private val tokenProvider: () -> String?
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
+        val anon = try {
+            anonId.value
+        } catch (e: Throwable) {
+            android.util.Log.e("EDGE", "AnonId.value patladi: ${e.javaClass.name}: ${e.message}", e)
+            "anon-fallback"
+        }
         val req = chain.request().newBuilder()
-            .addHeader("X-Anon-Id", anonId.value)
+            .addHeader("X-Anon-Id", anon)
             .apply { tokenProvider()?.let { addHeader("Authorization", "Bearer $it") } }
             .build()
         return chain.proceed(req)

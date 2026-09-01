@@ -44,10 +44,14 @@ class MatchListViewModel @Inject constructor(
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
-        refreshing.value = true
-        repo.refreshWindow(from, to)
-        repo.prune()
-        refreshing.value = false
+        // Ayni anda birden fazla tazeleme calismasin (gereksiz ag trafigi).
+        if (!refreshing.compareAndSet(expect = false, update = true)) return@launch
+        try {
+            repo.refreshWindow(from, to)
+            repo.prune()
+        } finally {
+            refreshing.value = false
+        }
     }
 }
 

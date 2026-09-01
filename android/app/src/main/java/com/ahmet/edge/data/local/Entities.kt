@@ -87,7 +87,8 @@ data class BankrollEntity(
 
 data class MatchWithTeams(
     @Embedded val match: MatchEntity,
-    @Relation(parentColumn = "homeTeamId", entityColumn = "id") val home: TeamEntity,
-    @Relation(parentColumn = "awayTeamId", entityColumn = "id") val away: TeamEntity,
-    @Relation(parentColumn = "leagueId", entityColumn = "id") val league: LeagueEntity
+    // Nullable: ilişkili satır henüz yazılmamışsa Room sorgusu NPE atmasin.
+    @Relation(parentColumn = "homeTeamId", entityColumn = "id") val home: TeamEntity?,
+    @Relation(parentColumn = "awayTeamId", entityColumn = "id") val away: TeamEntity?,
+    @Relation(parentColumn = "leagueId", entityColumn = "id") val league: LeagueEntity?
 )
