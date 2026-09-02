@@ -82,18 +82,23 @@ fun MatchDetailScreen(
             // ---- Model projeksiyonu ------------------------------------
             m?.let { mm ->
                 item {
-                    Section("Model projeksiyonu") {
-                        Row(Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Section("Model tahmini") {
+                        val p = ui.probs1x2
+                        val ph = p["HOME"] ?: .34; val pd = p["DRAW"] ?: .33; val pa = p["AWAY"] ?: .33
+                        val pick = when (maxOf(ph, pd, pa)) { ph -> 0; pd -> 1; else -> 2 }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            ScoreCol("1", ph, pick == 0)
+                            ScoreCol("X", pd, pick == 1)
+                            ScoreCol("2", pa, pick == 2)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        ProbBar3(ph, pd, pa, height = 5.dp)
+                        Spacer(Modifier.height(12.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             StatCell("BEK. GOL EV", fmt(mm.lambdaHome ?: 0.0), Ink.text)
                             StatCell("BEK. GOL DEP", fmt(mm.lambdaAway ?: 0.0), Ink.text)
                             StatCell("GÜVEN", pct0(mm.modelConfidence), Ink.muted)
                         }
-                        Spacer(Modifier.height(12.dp))
-                        val p = ui.probs1x2
-                        ProbBar3(p["HOME"] ?: .34, p["DRAW"] ?: .33, p["AWAY"] ?: .33)
-                        Spacer(Modifier.height(8.dp))
-                        ProbLegendRow(p["HOME"] ?: .34, p["DRAW"] ?: .33, p["AWAY"] ?: .33)
                     }
                 }
             }
@@ -332,35 +337,61 @@ private fun DetailHeader(
     homeCrest: String?, awayCrest: String?,
     meta: String,
 ) {
+    val root = java.util.Locale.ROOT
+    val hColor = com.ahmet.edge.ui.theme.TeamStyle.color(home)
+    val aColor = com.ahmet.edge.ui.theme.TeamStyle.color(away)
     Column(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp, 10.dp, 16.dp, 16.dp)
+        Modifier.fillMaxWidth()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(hColor.copy(alpha = 0.24f), Ink.surface)
+                )
+            )
+            .statusBarsPadding()
+            .padding(16.dp, 10.dp, 16.dp, 18.dp)
     ) {
-        Text("‹  GERİ", style = com.ahmet.edge.ui.theme.LabelMono, color = Ink.muted,
+        Text("‹  MAÇLAR", style = com.ahmet.edge.ui.theme.LabelMono, color = Ink.muted,
             modifier = Modifier.clip(RoundedCornerShape(4.dp))
                 .clickable(onClick = onBack).padding(vertical = 6.dp, horizontal = 2.dp))
-        Spacer(Modifier.height(14.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TeamCrest(homeCrest, home, 30.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(home, style = MaterialTheme.typography.titleLarge, color = Ink.text,
-                        maxLines = 1)
-                }
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Crest(com.ahmet.edge.ui.theme.TeamStyle.code(home), hColor, 46.dp)
                 Spacer(Modifier.height(9.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TeamCrest(awayCrest, away, 30.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(away, style = MaterialTheme.typography.titleLarge, color = Ink.text,
-                        maxLines = 1)
-                }
+                Text(home.uppercase(root), style = MaterialTheme.typography.titleMedium,
+                    color = Ink.text,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
+            }
+            Text("VS", style = MaterialTheme.typography.titleLarge, color = Ink.faint,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp))
+            Column(Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Crest(com.ahmet.edge.ui.theme.TeamStyle.code(away), aColor, 46.dp)
+                Spacer(Modifier.height(9.dp))
+                Text(away.uppercase(root), style = MaterialTheme.typography.titleMedium,
+                    color = Ink.text,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Text(meta, style = com.ahmet.edge.ui.theme.LabelMono.copy(fontSize = 10.sp),
-            color = Ink.faint)
+        Spacer(Modifier.height(14.dp))
+        Text(meta.uppercase(root),
+            style = com.ahmet.edge.ui.theme.LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
+            modifier = Modifier.align(Alignment.CenterHorizontally))
     }
     Hairline()
+}
+
+@Composable
+private fun ScoreCol(k: String, v: Double, pick: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(k, style = com.ahmet.edge.ui.theme.LabelMono.copy(fontSize = 12.sp, letterSpacing = 2.sp),
+            color = if (pick) Ink.accent else Ink.faint)
+        Spacer(Modifier.height(7.dp))
+        Text("${(v * 100).toInt()}",
+            style = MaterialTheme.typography.displaySmall,
+            color = if (pick) Ink.text else Ink.muted)
+    }
 }
 
 @Composable
