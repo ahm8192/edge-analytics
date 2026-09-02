@@ -318,7 +318,8 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
                     m["best_edge_pct"] = round(e, 4)
                     m["best_edge_sel"] = sel
                     m["best_odds"] = round(b[sel], 2)
-                    m["has_value"] = e > 0.02
+                    # >%3: gürültü/bayat çizgi payını düşer, gerçekten oynanabilir
+                    m["has_value"] = e > 0.03
 
 
 def _enrich_live(matches: list[dict], teams: dict[int, dict]) -> None:
