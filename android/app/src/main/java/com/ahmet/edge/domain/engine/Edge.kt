@@ -31,13 +31,16 @@ object Edge {
         return modelProbs.mapNotNull { (sel, mp) ->
             val price = bestPrices[sel] ?: return@mapNotNull null
             val ev = mp * price - 1.0
+            // %20 üstü "kenar" gerçek değer değil; model reytingi bu maçta piyasadan
+            // sert ayrışıyor demek. Değer saymayız, güveni düşürürüz.
+            val plausible = ev <= 0.20
             val conf = when {
-                sampleConfidence > 0.8 && ev > 0.05 -> Confidence.HIGH
-                sampleConfidence > 0.5 && ev > MIN_EDGE -> Confidence.MEDIUM
+                sampleConfidence > 0.8 && ev > 0.05 && plausible -> Confidence.HIGH
+                sampleConfidence > 0.5 && ev > MIN_EDGE && plausible -> Confidence.MEDIUM
                 else -> Confidence.LOW
             }
             EdgeResult(sel, mp, market[sel] ?: 0.0, price, Devig.fairPrice(mp),
-                ev, ev >= MIN_EDGE && conf != Confidence.LOW, conf)
+                ev, ev in MIN_EDGE..0.20 && conf != Confidence.LOW, conf)
         }.sortedByDescending { it.edgePct }
     }
 }

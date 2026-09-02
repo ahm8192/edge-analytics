@@ -159,7 +159,12 @@ fun MatchDetailScreen(
                                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
                         } else {
                             ui.edges.sortedByDescending { it.edgePct }.forEachIndexed { idx, e ->
-                                val pos = e.edgePct > 0
+                                // yeşil sadece gerçek değerde; sert ayrışma nötr, negatif kırmızı
+                                val kenarTint = when {
+                                    e.isValue -> Ink.signal
+                                    e.edgePct < 0 -> Ink.caution
+                                    else -> Ink.muted
+                                }
                                 if (idx > 0) Hairline()
                                 Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -167,7 +172,7 @@ fun MatchDetailScreen(
                                             style = MaterialTheme.typography.titleMedium,
                                             color = Ink.text)
                                         StatCell("KENAR", signedPct(e.edgePct),
-                                            if (pos) Ink.signal else Ink.caution, Modifier.weight(1f))
+                                            kenarTint, Modifier.weight(1f))
                                         StatCell("ORAN", fmt(e.takenPrice), Ink.text, Modifier.weight(1f))
                                         StatCell("GÜVEN", when (e.confidence) {
                                             Confidence.HIGH -> "YÜKSEK"; Confidence.MEDIUM -> "ORTA"

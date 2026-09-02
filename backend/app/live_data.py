@@ -298,8 +298,9 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
             m["market_draw"] = mp["DRAW"]
             m["market_away"] = mp["AWAY"]
             # Modelimiz kapanış oranını geçmiyor -> servis edilen olasılık
-            # %35 model + %65 piyasa. Modelin leanı görünür ama sapıtmaz.
-            w = 0.35
+            # %22 model + %78 piyasa. Modelin leanı görünür ama abartıya kaçmaz;
+            # ayrışma büyükse (kötü takım reytingi) bile makul kenar üretir.
+            w = 0.22
             ph = w * m["p_home"] + (1 - w) * mp["HOME"]
             pd_ = w * m["p_draw"] + (1 - w) * mp["DRAW"]
             pa = w * m["p_away"] + (1 - w) * mp["AWAY"]
