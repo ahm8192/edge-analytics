@@ -224,6 +224,18 @@ fun MatchListScreen(
                     MatchCard(m, showEdge) { onOpen(m.id) }; Hairline()
                 }
             }
+
+            item(key = "build-footer") {
+                Text(
+                    "LAMBDA  v${com.ahmet.edge.BuildConfig.VERSION_NAME}" +
+                        "  ·  yapım ${com.ahmet.edge.BuildConfig.VERSION_CODE}" +
+                        (if (refreshing) "  ·  senkron…" else "  ·  bağlı"),
+                    style = LabelMono.copy(fontSize = 9.sp), color = Ink.faint,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(top = 22.dp, bottom = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
     }
 }
