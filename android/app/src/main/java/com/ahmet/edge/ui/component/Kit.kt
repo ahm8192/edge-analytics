@@ -27,10 +27,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.shape.CircleShape
 import com.ahmet.edge.ui.theme.DataStyle
 import com.ahmet.edge.ui.theme.Ink
 import com.ahmet.edge.ui.theme.LabelMono
 import com.ahmet.edge.ui.theme.PlexMono
+import com.ahmet.edge.ui.theme.TeamStyle
 import java.util.Locale
 
 // ------------------------------------------------------------------ formatlar
@@ -198,6 +200,52 @@ fun TeamCrest(url: String?, name: String, size: Dp = 30.dp) {
             modifier = Modifier.size(size)
         )
     }
+}
+
+/** Kulüp renginde disk + 3 harfli kod. Yayın rozeti. */
+@Composable
+fun Crest(code: String, color: Color, size: Dp = 26.dp) {
+    Box(
+        Modifier.size(size).clip(CircleShape).background(color)
+            .border(1.5.dp, Color.White.copy(alpha = 0.14f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            code, color = Color.White,
+            style = LabelMono.copy(fontSize = (size.value * 0.34f).sp, letterSpacing = 0.2.sp),
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+fun Crest(name: String, size: Dp = 26.dp) =
+    Crest(TeamStyle.code(name), TeamStyle.color(name), size)
+
+/** Momentum çubuğu — takım rengi / beraberlik / deplasman, 2px boşluk. */
+@Composable
+fun SegBar(home: Double, draw: Double, away: Double, homeColor: Color, modifier: Modifier = Modifier) {
+    val h = home.toFloat().coerceAtLeast(0.001f)
+    val d = draw.toFloat().coerceAtLeast(0.001f)
+    val a = away.toFloat().coerceAtLeast(0.001f)
+    Row(modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Box(Modifier.weight(h).fillMaxHeight().background(homeColor))
+        Box(Modifier.weight(d).fillMaxHeight().background(Ink.lineStrong))
+        Box(Modifier.weight(a).fillMaxHeight().background(Ink.faint))
+    }
+}
+
+/** Yanıp sönen canlı noktası. */
+@Composable
+fun LiveDot(size: Dp = 7.dp, modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "live")
+    val a by t.animateFloat(
+        initialValue = 1f, targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "a"
+    )
+    Box(modifier.size(size).clip(CircleShape).background(Ink.live.copy(alpha = a)))
 }
 
 // ------------------------------------------------------------------ butonlar

@@ -13,60 +13,71 @@ import androidx.compose.ui.unit.sp
 import com.ahmet.edge.R
 
 /**
- * "Lambda" — kuantitatif terminal. Neredeyse siyah, katmanlı yüzeyler, gölge yok,
- * saç teli çizgiler. Tek ölçülü vurgu: kehribar. Yeşil/kırmızı sadece P&L / +EV.
- * Bütün sayılar monospace + tabular. Sıkı tipografi — abartısız, yoğun.
+ * "Lambda — Matchday". Yayın skorbordu dili: stadyum-gecesi lacivert zemin,
+ * takım rengi her satırı sürer. Sarı = marka / model seçimi, yeşil = değer / P&L,
+ * kırmızı = canlı / kayıp. Başlıklar sıkıştırılmış (Barlow Condensed), gövde Barlow.
+ *
+ * Not: eski isimler (Ink.*, PlexSans, PlexMono) korunuyor ki tüm çağrı yerleri
+ * derlensin — sadece değerler değişti.
  */
 object Ink {
-    val base = Color(0xFF08090B)
-    val surface = Color(0xFF101216)
-    val raised = Color(0xFF171A1F)
-    val line = Color(0xFF20242B)
-    val lineStrong = Color(0xFF2C313A)
+    val base = Color(0xFF0A101C)        // pitch
+    val surface = Color(0xFF111A2B)
+    val raised = Color(0xFF16202F)
+    val line = Color(0xFF212C3E)
+    val lineStrong = Color(0xFF33405A)
 
-    val text = Color(0xFFEAECEF)
-    val muted = Color(0xFF888F98)
-    val faint = Color(0xFF565D66)
+    val text = Color(0xFFF3F6FB)
+    val muted = Color(0xFF93A1B6)
+    val faint = Color(0xFF59667C)
 
-    val accent = Color(0xFFF5A623)
-    val accentDim = Color(0x1FF5A623)
+    val accent = Color(0xFFFFC61A)      // yayın sarısı — marka / model seçimi
+    val accentDim = Color(0x1FFFC61A)
 
-    val signal = Color(0xFF34D399)   // +EV / kazanç
-    val caution = Color(0xFFF5555D)  // −EV / kayıp
-    val brass = Color(0xFFF5A623)    // geri uyumluluk
+    val signal = Color(0xFF12D18E)      // +EV / kazanç
+    val caution = Color(0xFFFF2E4D)     // canlı / −EV / kayıp
+    val brass = Color(0xFFFFC61A)       // geri uyumluluk
+
+    val live = Color(0xFFFF2E4D)
 
     val home = Color(0xFF4C8DFF)
-    val draw = Color(0xFF636B78)
+    val draw = Color(0xFF565E6B)
     val away = Color(0xFFF2A73B)
 }
 
-val PlexSans = FontFamily(
-    Font(R.font.plex_sans_regular, FontWeight.Normal),
-    Font(R.font.plex_sans_medium, FontWeight.Medium),
-    Font(R.font.plex_sans_semibold, FontWeight.SemiBold),
+val Barlow = FontFamily(
+    Font(R.font.barlow_regular, FontWeight.Normal),
+    Font(R.font.barlow_medium, FontWeight.Medium),
+    Font(R.font.barlow_semibold, FontWeight.SemiBold),
+    Font(R.font.barlow_bold, FontWeight.Bold),
 )
-val PlexMono = FontFamily(
-    Font(R.font.plex_mono_regular, FontWeight.Normal),
-    Font(R.font.plex_mono_medium, FontWeight.Medium),
-    Font(R.font.plex_mono_semibold, FontWeight.SemiBold),
+val BarlowCondensed = FontFamily(
+    Font(R.font.barlow_condensed_medium, FontWeight.Normal),
+    Font(R.font.barlow_condensed_medium, FontWeight.Medium),
+    Font(R.font.barlow_condensed_semibold, FontWeight.SemiBold),
+    Font(R.font.barlow_condensed_bold, FontWeight.Bold),
 )
+
+/** Geri uyumluluk: eski kod bu isimleri kullanıyor. */
+val PlexSans = Barlow
+val PlexMono = BarlowCondensed
 
 private const val tnum = "tnum"
 
-/** Bölüm başlığı: mono, seyrek, büyük harf, kısık. */
+/** Bölüm / etiket başlığı — sıkıştırılmış, seyrek, büyük harf (call-site'ta uppercase). */
 val LabelMono = TextStyle(
-    fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-    fontSize = 10.sp, letterSpacing = 1.1.sp
+    fontFamily = BarlowCondensed, fontWeight = FontWeight.Medium,
+    fontSize = 11.sp, letterSpacing = 0.9.sp
 )
 
-/** Rakam bloğu — olasılık, oran, tutar. Her zaman tabular. */
+/** Rakam bloğu — olasılık, oran, skor, tutar. Tabular. */
 val DataStyle = TextStyle(
-    fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-    fontFeatureSettings = tnum, letterSpacing = 0.sp, fontSize = 13.sp
+    fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
+    fontFeatureSettings = tnum, letterSpacing = 0.3.sp, fontSize = 14.sp
 )
 
 private val Dark = darkColorScheme(
-    primary = Ink.accent, onPrimary = Ink.base,
+    primary = Ink.accent, onPrimary = Color(0xFF1A1400),
     secondary = Ink.accent,
     background = Ink.base, onBackground = Ink.text,
     surface = Ink.surface, onSurface = Ink.text,
@@ -75,25 +86,25 @@ private val Dark = darkColorScheme(
 )
 
 private val EdgeType = Typography(
-    displaySmall = TextStyle(fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-        fontSize = 26.sp, letterSpacing = (-0.4).sp, fontFeatureSettings = tnum),
-    headlineSmall = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp, letterSpacing = (-0.2).sp),
-    titleLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp),
-    titleMedium = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-        fontSize = 13.5.sp),
-    bodyLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
+    displaySmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Bold,
+        fontSize = 32.sp, letterSpacing = 0.4.sp, fontFeatureSettings = tnum),
+    headlineSmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Bold,
+        fontSize = 22.sp, letterSpacing = 0.4.sp),
+    titleLarge = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp, letterSpacing = 0.3.sp),
+    titleMedium = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp, letterSpacing = 0.2.sp),
+    bodyLarge = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
         fontSize = 14.sp, lineHeight = 20.sp),
-    bodyMedium = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
+    bodyMedium = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
         fontSize = 12.5.sp, lineHeight = 18.sp),
-    bodySmall = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
+    bodySmall = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
         fontSize = 11.5.sp, lineHeight = 16.sp, color = Ink.muted),
-    labelLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp, letterSpacing = 0.2.sp),
+    labelLarge = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp, letterSpacing = 0.3.sp),
     labelMedium = LabelMono,
-    labelSmall = TextStyle(fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-        fontSize = 10.sp, fontFeatureSettings = tnum),
+    labelSmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Medium,
+        fontSize = 10.sp, letterSpacing = 0.5.sp, fontFeatureSettings = tnum),
 )
 
 @Composable
