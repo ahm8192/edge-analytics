@@ -33,6 +33,32 @@ _last_request_at = 0.0
 
 # match_id -> (competition_code, home_name, away_name) — /analysis için
 _MATCH_CTX: dict[int, tuple[str, str, str]] = {}
+# match_id -> API-Football oran bloğu — /odds için
+_MATCH_ODDS: dict[int, dict] = {}
+
+
+def match_odds(match_id: int) -> dict:
+    """Yakın maçlarda API-Football'dan gelen oranlar (yoksa boş)."""
+    od = _MATCH_ODDS.get(int(match_id))
+    if not od:
+        return {"quotes": []}
+    quotes = []
+    if "pin_1x2" in od:
+        p = od["pin_1x2"]
+        quotes.append({"bookmaker": "Pinnacle", "market": "1X2",
+                       "prices": {"HOME": p["HOME"], "DRAW": p["DRAW"], "AWAY": p["AWAY"]},
+                       "captured_at": "", "is_closing": False, "is_sharp": True})
+    if "best_1x2" in od:
+        b = od["best_1x2"]
+        quotes.append({"bookmaker": "En iyi", "market": "1X2",
+                       "prices": {"HOME": b["HOME"], "DRAW": b["DRAW"], "AWAY": b["AWAY"]},
+                       "captured_at": "", "is_closing": False, "is_sharp": False})
+    if "best_ou25" in od:
+        b = od["best_ou25"]
+        quotes.append({"bookmaker": "En iyi", "market": "OU", "line": 2.5,
+                       "prices": {"OVER": b["OVER"], "UNDER": b["UNDER"]},
+                       "captured_at": "", "is_closing": False, "is_sharp": False})
+    return {"quotes": quotes}
 
 
 def _throttle() -> None:
@@ -159,11 +185,117 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
             return cached[1]
         raise RuntimeError(f"football-data yanıt vermedi: {', '.join(failed)}")
 
+    _enrich(matches, teams)
+
     matches.sort(key=lambda x: x["kickoff"])
     result = {"matches": matches, "leagues": list(leagues.values()), "teams": list(teams.values())}
     with _cache_lock:
         _cache[cache_key] = (time.monotonic(), result)
     return result
+
+
+def _enrich(matches: list[dict], teams: dict[int, dict]) -> None:
+    """Yakın maçları API-Football ile zenginleştir: Pinnacle + sakatlık + +EV."""
+    try:
+        from . import apifootball as af
+    except Exception:
+        return
+    if not af.enabled():
+        return
+    try:
+        fixw = af.fixtures_window(3)
+        injw = af.injuries_window(3)
+    except Exception:
+        return
+    if not fixw:
+        return
+
+    import difflib
+
+    from .model import _norm  # aynı isim normalizasyonu
+
+    # football-data.org tam adı (normalize) -> API-Football yaygın adı (normalize)
+    _BR = {
+        "queens park rangers": "qpr", "west bromwich albion": "west brom",
+        "sheffield wednesday": "sheffield weds", "wolverhampton wanderers": "wolves",
+        "brighton hove albion": "brighton", "tottenham hotspur": "tottenham",
+        "manchester united": "manchester utd", "newcastle united": "newcastle",
+        "nottingham forest": "nottingham forest", "west ham united": "west ham",
+        "leeds united": "leeds", "afc bournemouth": "bournemouth",
+        "borussia monchengladbach": "borussia monchengladbach",
+        "1 fc koln": "fc koln", "bayer 04 leverkusen": "bayer leverkusen",
+        "1 fsv mainz 05": "mainz 05", "rc celta de vigo": "celta vigo",
+        "club atletico de madrid": "atletico madrid", "athletic club": "athletic club",
+        "real betis balompie": "real betis", "rcd espanyol de barcelona": "espanyol",
+    }
+
+    def keyify(s: str) -> str:
+        n = _norm(s)
+        return _BR.get(n, n)
+
+    by_date: dict[str, list] = {}
+    for fx in fixw:
+        by_date.setdefault(fx["date"], []).append(fx)
+
+    def find(hn: str, an: str, d: str):
+        cands = by_date.get(d, [])
+        h, a = keyify(hn), keyify(an)
+        for fx in cands:
+            if keyify(fx["home"]) == h and keyify(fx["away"]) == a:
+                return fx
+        best, bestsc = None, 0.0
+        for fx in cands:
+            sc = (difflib.SequenceMatcher(None, h, keyify(fx["home"])).ratio()
+                  + difflib.SequenceMatcher(None, a, keyify(fx["away"])).ratio()) / 2
+            if sc > bestsc:
+                best, bestsc = fx, sc
+        return best if bestsc >= 0.70 else None
+
+    for m in matches:
+        th = teams.get(m["home_team_id"], {})
+        ta = teams.get(m["away_team_id"], {})
+        d = m["kickoff"][:10]
+        fx = find(th.get("name", ""), ta.get("name", ""), d)
+        if fx is None:
+            continue
+
+        inj = injw.get(fx["af_id"], {})
+        ih = inj.get(fx.get("home_id"), 0)
+        ia = inj.get(fx.get("away_id"), 0)
+        code, hn, an = _MATCH_CTX.get(m["id"], (None, th.get("name"), ta.get("name")))
+        if code and (ih or ia):
+            p = model.probs(code, hn, an, inj_home=ih, inj_away=ia)
+            m.update({"p_home": p["p_home"], "p_draw": p["p_draw"], "p_away": p["p_away"],
+                      "p_over25": p["p_over25"], "p_btts": p["p_btts"],
+                      "lambda_home": p["lambda_home"], "lambda_away": p["lambda_away"]})
+        m["injuries_home"], m["injuries_away"] = int(ih), int(ia)
+
+        od = None
+        try:
+            od = af.odds_for_fixture(fx["af_id"])
+        except Exception:
+            od = None
+        if not od:
+            continue
+        _MATCH_ODDS[m["id"]] = od
+        if "pin_1x2" in od:
+            m["pinnacle_home"] = od["pin_1x2"]["HOME"]
+            m["pinnacle_draw"] = od["pin_1x2"]["DRAW"]
+            m["pinnacle_away"] = od["pin_1x2"]["AWAY"]
+        if "pin_p_1x2" in od:
+            m["market_home"] = od["pin_p_1x2"]["HOME"]
+            m["market_draw"] = od["pin_p_1x2"]["DRAW"]
+            m["market_away"] = od["pin_p_1x2"]["AWAY"]
+        if "best_1x2" in od:
+            b = od["best_1x2"]
+            pm = {"HOME": m["p_home"], "DRAW": m["p_draw"], "AWAY": m["p_away"]}
+            edges = {k: pm[k] * b[k] - 1.0 for k in ("HOME", "DRAW", "AWAY") if b.get(k)}
+            if edges:
+                sel = max(edges, key=edges.get)
+                m["best_edge_pct"] = round(edges[sel], 4)
+                m["best_edge_sel"] = sel
+                m["best_odds"] = round(b[sel], 2)
+                m["has_value"] = edges[sel] > 0.03
 
 
 def default_analysis(match_id: int) -> dict:

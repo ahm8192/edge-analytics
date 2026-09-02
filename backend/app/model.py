@@ -209,7 +209,8 @@ def _league_for_code(code: str) -> _League | None:
     return lg
 
 
-def _components(comp_code: str, home_name: str, away_name: str) -> dict | None:
+def _components(comp_code: str, home_name: str, away_name: str,
+                inj_home: int = 0, inj_away: int = 0) -> dict | None:
     lg = _league_for_code(comp_code)
     if lg is None:
         return None
@@ -232,6 +233,13 @@ def _components(comp_code: str, home_name: str, away_name: str) -> dict | None:
     def_h = 0.0 if def_h is None else float(def_h)
     atk_a = 0.0 if atk_a is None else float(atk_a)
     def_a = 0.0 if def_a is None else float(def_a)
+
+    # sakatlık cezası: 2+ eksikten itibaren, oyuncu başına ~-0.04, en fazla -0.08
+    def _pen(n: int) -> float:
+        n = int(n)
+        return 0.04 * min(max(n - 1, 0), 2) if n >= 2 else 0.0
+    atk_h -= _pen(inj_home)
+    atk_a -= _pen(inj_away)
 
     lam_home = min(max(math.exp(atk_h - def_a + lg.home_adv), 0.15), 5.0)
     lam_away = min(max(math.exp(atk_a - def_h), 0.15), 5.0)
@@ -291,9 +299,10 @@ def _score_probs(lam: float, mu: float, rho: float) -> dict:
             "over25": ov / tot, "btts": bt / tot}
 
 
-def probs(comp_code: str, home_name: str, away_name: str) -> dict:
+def probs(comp_code: str, home_name: str, away_name: str,
+          inj_home: int = 0, inj_away: int = 0) -> dict:
     """Kalibre 1X2 + Ü2.5 + KG-var olasılıkları + ham lambda'lar."""
-    c = _components(comp_code, home_name, away_name)
+    c = _components(comp_code, home_name, away_name, inj_home, inj_away)
     if c is None:
         r = _score_probs(1.35, 1.10, -0.03)
         return {"lambda_home": 1.35, "lambda_away": 1.10, "rho": -0.03,

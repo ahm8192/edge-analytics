@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ...live_data import default_analysis, fetch_matches
+from ...live_data import default_analysis, fetch_matches, match_odds
 
 router = APIRouter(tags=["matches"])
 
@@ -31,8 +31,8 @@ def analysis(match_id: int):
 
 @router.get("/matches/{match_id}/odds")
 def odds(match_id: int, market: str = "1X2"):
-    # football-data.org ücretsiz planında bahis oranları bulunmaz.
-    return {"quotes": []}
+    # Yakın maçlar için API-Football'dan Pinnacle + en iyi oran; uzak maçlarda boş.
+    return match_odds(match_id)
 
 
 @router.get("/matches/{match_id}/odds/movement")

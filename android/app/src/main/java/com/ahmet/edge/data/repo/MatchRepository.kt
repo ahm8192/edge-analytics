@@ -76,6 +76,19 @@ class MatchRepository @Inject constructor(
             matchDao.upsertTeams(body.teams.map {
                 TeamEntity(it.id, it.name, it.shortName, it.crestUrl)
             })
+            // Yakın maçlarda Pinnacle 1X2 -> odds tablosu (edge/Kelly otomatik hesaplansın)
+            val now2 = Instant.now().epochSecond
+            body.matches.forEach { m ->
+                if (m.pinnacleHome != null && m.pinnacleDraw != null && m.pinnacleAway != null) {
+                    runCatching {
+                        oddsDao.upsert(listOf(
+                            OddsEntity(m.id, "PINNACLE", "1X2", null, "HOME", m.pinnacleHome, now2, false, true),
+                            OddsEntity(m.id, "PINNACLE", "1X2", null, "DRAW", m.pinnacleDraw, now2, false, true),
+                            OddsEntity(m.id, "PINNACLE", "1X2", null, "AWAY", m.pinnacleAway, now2, false, true),
+                        ))
+                    }
+                }
+            }
             matchDao.upsert(body.matches.map { m ->
                 MatchEntity(m.id, m.leagueId, m.homeTeamId, m.awayTeamId,
                     Instant.parse(m.kickoff).epochSecond, m.status, m.homeGoals, m.awayGoals,

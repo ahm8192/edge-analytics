@@ -66,7 +66,15 @@ data class MatchDto(
     @SerialName("p_draw") val pDraw: Double? = null,
     @SerialName("p_away") val pAway: Double? = null,
     @SerialName("p_over25") val pOver25: Double? = null,
-    @SerialName("p_btts") val pBtts: Double? = null
+    @SerialName("p_btts") val pBtts: Double? = null,
+    // Yakın maçlarda API-Football'dan Pinnacle 1X2 oranı (fiyat)
+    @SerialName("pinnacle_home") val pinnacleHome: Double? = null,
+    @SerialName("pinnacle_draw") val pinnacleDraw: Double? = null,
+    @SerialName("pinnacle_away") val pinnacleAway: Double? = null,
+    @SerialName("best_odds") val bestOdds: Double? = null,
+    @SerialName("best_edge_sel") val bestEdgeSel: String? = null,
+    @SerialName("injuries_home") val injuriesHome: Int? = null,
+    @SerialName("injuries_away") val injuriesAway: Int? = null
 )
 
 @Serializable data class LeagueDto(val id: Long, val name: String, val country: String,
