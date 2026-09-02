@@ -15,6 +15,13 @@ interface EdgeApi {
         @Query("league_id") leagueId: Long? = null
     ): Response<MatchListDto>
 
+    /** Değer tablosu: Pinnacle-adil fiyatını geçen her kitap/seçim. */
+    @GET("v1/value")
+    suspend fun value(
+        @Query("from") fromIso: String,
+        @Query("to") toIso: String
+    ): Response<ValueBoardDto>
+
     /** Kota bu uçta tüketilir; 429 dönerse ücretsiz hak bitmiştir. */
     @GET("v1/matches/{id}/analysis")
     suspend fun analysis(@Path("id") id: Long): Response<AnalysisDto>
@@ -86,6 +93,28 @@ data class MatchDto(
 @Serializable data class TeamDto(val id: Long, val name: String,
                                  @SerialName("short_name") val shortName: String,
                                  @SerialName("crest_url") val crestUrl: String? = null)
+
+@Serializable
+data class ValueBoardDto(
+    @SerialName("value_bets") val valueBets: List<ValueBetDto> = emptyList()
+)
+
+@Serializable
+data class ValueBetDto(
+    @SerialName("match_id") val matchId: Long,
+    val kickoff: String,
+    val league: String = "",
+    val home: String = "",
+    val away: String = "",
+    val book: String,
+    val sharp: Boolean = false,
+    val selection: String,
+    val odds: Double,
+    @SerialName("fair_odds") val fairOdds: Double,
+    @SerialName("pin_odds") val pinOdds: Double = 0.0,
+    @SerialName("edge_pct") val edgePct: Double,
+    @SerialName("model_agree") val modelAgree: Boolean = true
+)
 
 @Serializable
 data class AnalysisDto(

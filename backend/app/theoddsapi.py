@@ -90,6 +90,7 @@ def odds_rows(codes: list[str]) -> list[dict]:
                 continue
             pin = None
             best: dict[str, float] = {}
+            book_odds: list[dict] = []   # [{book, HOME, DRAW, AWAY}]
             for bm in m.get("bookmakers", []):
                 mk = next((x for x in bm.get("markets", []) if x.get("key") == "h2h"), None)
                 if not mk:
@@ -105,10 +106,13 @@ def odds_rows(codes: list[str]) -> list[dict]:
                     if sel:
                         row[sel] = float(pr)
                         best[sel] = max(best.get(sel, 0.0), float(pr))
-                if bm.get("key") == "pinnacle" and len(row) == 3:
-                    pin = row
+                if len(row) == 3:
+                    book_odds.append({"book": bm.get("title") or bm.get("key") or "?",
+                                      "key": bm.get("key"), **row})
+                    if bm.get("key") == "pinnacle":
+                        pin = row
             entry: dict = {"home": home, "away": away, "date": date,
-                           "books": len(m.get("bookmakers", []))}
+                           "books": len(m.get("bookmakers", [])), "book_odds": book_odds}
             if len(best) == 3:
                 entry["best_1x2"] = best
             if pin:
@@ -121,6 +125,39 @@ def odds_rows(codes: list[str]) -> list[dict]:
                 entry["pin_p_1x2"] = {"HOME": round(p[0], 4), "DRAW": round(p[1], 4),
                                       "AWAY": round(p[2], 4)}
             out.append(entry)
+    return out
+
+
+_SHARP = {"pinnacle", "betfair_ex_eu", "betfair_ex_uk", "smarkets", "matchbook"}
+
+
+def value_from_row(row: dict, min_edge: float = 0.02, max_edge: float = 0.20) -> list[dict]:
+    """Pinnacle'ı 'gerçek' kabul et; her kitabın her seçimini onun adil fiyatıyla
+    karşılaştır. book_odds * pin_fair_prob - 1 pozitifse değer bahsi.
+    (Yayınlanmış strateji: zayıf kitap > Pinnacle-adil ~ %3.6 ROI / 14 sezon.)"""
+    pin = row.get("pin_1x2")
+    fair = row.get("pin_p_1x2")
+    if not pin or not fair:
+        return []
+    out: list[dict] = []
+    for bo in row.get("book_odds", []):
+        if bo.get("key") == "pinnacle":
+            continue
+        for sel in ("HOME", "DRAW", "AWAY"):
+            o = bo.get(sel)
+            fp = fair.get(sel)
+            if not o or not fp:
+                continue
+            edge = o * fp - 1.0
+            if min_edge <= edge <= max_edge:
+                out.append({
+                    "book": bo["book"], "sharp": bo.get("key") in _SHARP,
+                    "selection": sel, "odds": round(o, 2),
+                    "fair_odds": round(1.0 / fp, 2),
+                    "pin_odds": round(pin[sel], 2),
+                    "edge_pct": round(edge, 4),
+                })
+    out.sort(key=lambda x: -x["edge_pct"])
     return out
 
 

@@ -23,6 +23,29 @@ def list_matches(
     return payload
 
 
+@router.get("/value")
+def value_board(from_: str = Query(alias="from"), to: str = Query(...)):
+    """Değer tablosu: Pinnacle-adil fiyatını geçen her kitap/seçim, kenara göre sıralı.
+    Belgelenmiş +EV yönü (zayıf kitap > Pinnacle-adil)."""
+    try:
+        payload = fetch_matches(from_, to)
+    except Exception as exc:
+        raise HTTPException(502, detail={"error": "football_provider_unavailable", "message": str(exc)}) from exc
+    tn = {t["id"]: (t.get("short_name") or t.get("name") or "") for t in payload["teams"]}
+    ln = {lg["id"]: lg.get("name", "") for lg in payload["leagues"]}
+    rows: list[dict] = []
+    for m in payload["matches"]:
+        for v in m.get("value_bets", []):
+            rows.append({
+                "match_id": m["id"], "kickoff": m["kickoff"],
+                "league": ln.get(m["league_id"], ""),
+                "home": tn.get(m["home_team_id"], ""), "away": tn.get(m["away_team_id"], ""),
+                **v,
+            })
+    rows.sort(key=lambda x: -x["edge_pct"])
+    return {"value_bets": rows}
+
+
 @router.get("/matches/{match_id}/analysis")
 def analysis(match_id: int):
     # Ücretsiz sağlayıcı model parametresi sunmadığı için nötr öncül kullanılır.

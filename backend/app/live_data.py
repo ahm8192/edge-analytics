@@ -97,13 +97,22 @@ def build_narrative(m: dict, home: str, away: str) -> str:
                 f"Piyasa bu sonucu %{mk*100:.0f} fiyatlıyor; model {yön} görüyor "
                 f"(%{top*100:.0f}).")
 
-    if m.get("has_value") and m.get("best_edge_pct") and m.get("best_odds"):
+    vb = m.get("value_bets") or []
+    if vb:
+        top = vb[0]
+        sel = {"HOME": home, "DRAW": "beraberlik", "AWAY": away}.get(top["selection"], top["selection"])
+        extra = f" ({len(vb)} kitapta değer var)" if len(vb) > 1 else ""
+        lines.append(
+            f"Değer: {top['book']} {sel} için {top['odds']:.2f} veriyor — Pinnacle'ın "
+            f"adil {top['fair_odds']:.2f}'ini +%{top['edge_pct']*100:.1f} geçiyor{extra}. "
+            f"Bu 'oran avı': Pinnacle'ı gerçek kabul edip zayıf kitabın fazla verdiği "
+            f"yeri yakalıyoruz, model değil.")
+    elif m.get("has_value") and m.get("best_edge_pct") and m.get("best_odds"):
         sel = {"HOME": "ev sahibi", "DRAW": "beraberlik", "AWAY": "deplasman"}.get(
             m.get("best_edge_sel", ""), m.get("best_edge_sel", ""))
         lines.append(
             f"Değer {sel} tarafında: en iyi {m['best_odds']:.2f} oranı Pinnacle'ın "
-            f"adil fiyatını +%{m['best_edge_pct']*100:.1f} geçiyor. Oran avı — "
-            f"model piyasayı yenmiyor, sadece daha iyi fiyat buluyor.")
+            f"adil fiyatını +%{m['best_edge_pct']*100:.1f} geçiyor.")
     else:
         lines.append("Oynanabilir bir fiyat farkı yok; beklemede kal.")
 
@@ -309,7 +318,7 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
                 "market_home", "market_draw", "market_away",
                 "best_edge_pct", "best_edge_sel", "best_odds", "has_value",
                 "injuries_home", "injuries_away", "status", "minute",
-                "home_goals", "away_goals", "odds_similar")},
+                "home_goals", "away_goals", "odds_similar", "value_bets")},
         }
 
     # Canlı maçlar en üstte, sonra başlama saatine göre
@@ -460,6 +469,21 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
                     m["best_odds"] = round(b[sel], 2)
                     # >%3: gürültü/bayat çizgi payını düşer, gerçekten oynanabilir
                     m["has_value"] = e > 0.03
+
+        # Tam değer taraması: Pinnacle-adil vs her kitap, her seçim
+        try:
+            from . import theoddsapi as _toa
+            vb = _toa.value_from_row(od)
+            if vb:
+                pm = {"HOME": m.get("p_home"), "DRAW": m.get("p_draw"), "AWAY": m.get("p_away")}
+                for v in vb:
+                    imp = mp.get(v["selection"]) if mp else None
+                    mv = pm.get(v["selection"])
+                    # model bu seçimi Pinnacle'ın %80'inden az görüyorsa "model karşı"
+                    v["model_agree"] = not (imp and mv is not None and mv < 0.80 * imp)
+                m["value_bets"] = vb[:6]
+        except Exception:
+            pass
 
 
 def _append_live_extras(matches: list[dict], leagues: dict[int, dict],

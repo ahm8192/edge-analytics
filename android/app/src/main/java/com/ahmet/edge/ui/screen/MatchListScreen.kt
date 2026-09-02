@@ -505,41 +505,87 @@ fun ValueBoardScreen(
     vm: ValueBoardViewModel = hiltViewModel()
 ) {
     val ent = LocalEntitlement.current
-    val matches by vm.matches.collectAsState()
+    val bets by vm.bets.collectAsState()
+    val loading by vm.loading.collectAsState()
 
     Column(Modifier.fillMaxSize().background(Ink.base)) {
         ScreenHeader(
-            "Model leanları",
-            right = if (ent.allows(Feature.EDGE_DETECTION) && matches.isNotEmpty())
-                "${matches.size} MAÇ" else null,
-            sub = "Modelin en güçlü kanaatleri — en net sonuç × güven. Maça girip " +
-                "oranını yazarak kenar payını gör."
+            "Değer tablosu",
+            right = if (ent.allows(Feature.EDGE_DETECTION) && bets.isNotEmpty())
+                "${bets.size} FIRSAT" else if (loading) "TARANIYOR" else null,
+            sub = "Pinnacle'ı gerçek kabul edip diğer kitapların fazla verdiği yeri buluyoruz. " +
+                "Belgelenmiş +EV yönü (zayıf kitap > Pinnacle-adil) — model değil, oran avı."
         )
 
         if (!ent.allows(Feature.EDGE_DETECTION)) {
             LockedFeaturePane(
-                "Model leanları · PRO",
-                "Modelin en net gördüğü maçları tek listede sıralar. Bir maça girip " +
-                    "kendi bahisçinin oranını yazınca kenar payını ve önerilen tutarı hesaplar.",
+                "Değer tablosu · PRO",
+                "Her maç için Pinnacle'ın adil fiyatını geçen tüm kitap/seçimleri kenara " +
+                    "göre sıralar. Oynanabilir +EV listesi.",
                 onUpgrade
             )
             return
         }
 
         Hairline()
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            items(matches, key = { it.id }) { m ->
-                MatchCard(m, true) { onOpen(m.id) }; Hairline()
-            }
-            if (matches.isEmpty()) item {
-                EmptyState(
-                    "Yaklaşan maç yok",
-                    "Fikstür geldikçe modelin kanaatleri burada sıralanır."
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            if (bets.isEmpty()) item {
+                if (loading) Box(Modifier.padding(16.dp, 12.dp)) {
+                    Skeleton(Modifier.fillMaxWidth().height(72.dp))
+                } else EmptyState(
+                    "Şu an değer yok",
+                    "Hiçbir kitap Pinnacle'ın adil fiyatını anlamlı ölçüde geçmiyor. " +
+                        "Oranlar 14 saatte bir yenilenir (ücretsiz sınır)."
                 )
             }
+            items(bets, key = { it.matchId.toString() + it.book + it.selection }) { v ->
+                ValueBetRow(v) { onOpen(v.matchId) }; Hairline()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ValueBetRow(v: com.ahmet.edge.data.remote.ValueBetDto, onClick: () -> Unit) {
+    val selLabel = when (v.selection) { "HOME" -> "1  ${v.home}"; "AWAY" -> "2  ${v.away}"; else -> "X  Beraberlik" }
+    val kick = remember(v.kickoff) {
+        runCatching { java.time.Instant.parse(v.kickoff).atZone(ZoneId.systemDefault()).format(timeFmt) }
+            .getOrDefault("")
+    }
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .background(Ink.signal.copy(alpha = 0.05f))
+            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(v.book.uppercase(ROOT),
+                    style = MaterialTheme.typography.titleMedium, color = Ink.text, maxLines = 1)
+                if (v.sharp) {
+                    Spacer(Modifier.width(6.dp))
+                    Text("KESKİN", style = LabelMono.copy(fontSize = 8.sp), color = Ink.faint)
+                }
+                if (!v.modelAgree) {
+                    Spacer(Modifier.width(6.dp))
+                    Text("MODEL KARŞI", style = LabelMono.copy(fontSize = 8.sp), color = Ink.caution)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(selLabel, style = MaterialTheme.typography.bodyMedium, color = Ink.muted,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(3.dp))
+            Text("${v.league.uppercase(ROOT)} · $kick",
+                style = LabelMono.copy(fontSize = 8.5.sp), color = Ink.faint, maxLines = 1)
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text("+${String.format(Locale.US, "%.1f", v.edgePct * 100)}%",
+                style = MaterialTheme.typography.displaySmall.copy(fontSize = 18.sp),
+                color = Ink.signal, maxLines = 1, softWrap = false)
+            Spacer(Modifier.height(3.dp))
+            Text("${fmt(v.odds)}  ·  adil ${fmt(v.fairOdds)}",
+                style = LabelMono.copy(fontSize = 9.5.sp), color = Ink.faint,
+                maxLines = 1, softWrap = false)
         }
     }
 }
@@ -567,14 +613,24 @@ fun LockedFeaturePane(title: String, body: String, onUpgrade: () -> Unit) {
 }
 
 @HiltViewModel
-class ValueBoardViewModel @Inject constructor(repo: MatchRepository) : ViewModel() {
-    // Modelin en güçlü kanaatleri: en olası sonucun olasılığına göre sıralı.
-    val matches = repo.observeUpcoming(10)
-        .map { list ->
-            list.sortedByDescending { m ->
-                val (h, d, a) = oneXtwo(m)
-                maxOf(h, d, a) * m.modelConfidence
-            }.take(40)
+class ValueBoardViewModel @Inject constructor(
+    private val api: com.ahmet.edge.data.remote.EdgeApi
+) : ViewModel() {
+    val bets = MutableStateFlow<List<com.ahmet.edge.data.remote.ValueBetDto>>(emptyList())
+    val loading = MutableStateFlow(true)
+
+    init { refresh() }
+
+    fun refresh() = viewModelScope.launch {
+        loading.value = true
+        try {
+            val from = java.time.Instant.now().toString()
+            val to = java.time.Instant.now().plusSeconds(7L * 86400).toString()
+            val r = api.value(from, to)
+            if (r.isSuccessful) bets.value = r.body()?.valueBets ?: emptyList()
+        } catch (_: Exception) {
+        } finally {
+            loading.value = false
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }
 }
