@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  7,
-    "versionName":  "0.2.7",
-    "notes":  "Yakin maclarda Pinnacle referansi + sakatlik + gercek deger tespiti (API-Football)."
+    "versionCode":  8,
+    "versionName":  "0.2.8",
+    "notes":  "Kasa kurulumu, biten bahisler otomatik kapaniyor, kupon analizi, skor dagilimi haritasi."
 }
