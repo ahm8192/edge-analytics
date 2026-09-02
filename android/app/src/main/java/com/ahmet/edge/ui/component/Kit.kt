@@ -202,19 +202,30 @@ fun TeamCrest(url: String?, name: String, size: Dp = 30.dp) {
     }
 }
 
-/** Kulüp renginde disk + 3 harfli kod. Yayın rozeti. */
+/** Gerçek kulüp arması varsa onu, yoksa kulüp renginde disk + 3 harfli kod. */
 @Composable
-fun Crest(code: String, color: Color, size: Dp = 26.dp) {
+fun Crest(code: String, color: Color, size: Dp = 26.dp, url: String? = null) {
+    var failed by remember(url) { mutableStateOf(false) }
     Box(
-        Modifier.size(size).clip(CircleShape).background(color)
-            .border(1.5.dp, Color.White.copy(alpha = 0.14f), CircleShape),
+        Modifier.size(size).clip(CircleShape).background(color.copy(alpha = 0.16f))
+            .border(1.dp, color.copy(alpha = 0.55f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            code, color = Color.White,
-            style = LabelMono.copy(fontSize = (size.value * 0.34f).sp, letterSpacing = 0.2.sp),
-            maxLines = 1
-        )
+        if (!url.isNullOrBlank() && !failed) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current).data(url).crossfade(true).build(),
+                contentDescription = null,
+                onError = { failed = true },
+                modifier = Modifier.size(size * 0.7f)
+            )
+        } else {
+            Box(Modifier.matchParentSize().clip(CircleShape).background(color))
+            Text(
+                code, color = Color.White,
+                style = LabelMono.copy(fontSize = (size.value * 0.34f).sp, letterSpacing = 0.2.sp),
+                maxLines = 1
+            )
+        }
     }
 }
 

@@ -202,13 +202,18 @@ fun MatchListScreen(
                             .minByOrNull { it.kickoff }
                             ?.kickoff?.atZone(ZoneId.systemDefault())?.format(timeFmt)
                     }
-                    DayDivider("● CANLI", 0, accent = true)
-                    Text(
-                        if (next != null) "Şu an takip edilen liglerde canlı maç yok · sıradaki $next"
-                        else "Şu an takip edilen liglerde canlı maç yok",
-                        style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 4.dp)
-                    )
+                    Row(
+                        Modifier.fillMaxWidth().padding(20.dp, 12.dp, 20.dp, 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(Ink.faint))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (next != null) "CANLI MAÇ YOK · SIRADAKİ $next"
+                            else "CANLI MAÇ YOK",
+                            style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint, maxLines = 1
+                        )
+                    }
                 }
             }
 
@@ -247,30 +252,30 @@ private fun TerminalHeader(
 ) {
     Column(
         Modifier.fillMaxWidth().statusBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp)
+            .padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 9.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(24.dp).clip(RoundedCornerShape(7.dp))
+                Modifier.size(22.dp).clip(RoundedCornerShape(6.dp))
                     .background(Ink.accent)
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(7.dp)),
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(6.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("λ", style = TextStyle(fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp), color = Color(0xFF1A1400))
+                    fontSize = 14.sp), color = Color(0xFF1A1400))
             }
-            Spacer(Modifier.width(11.dp))
+            Spacer(Modifier.width(9.dp))
             Text("LAMBDA", style = TextStyle(fontFamily = PlexMono,
-                fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 2.sp),
+                fontWeight = FontWeight.Bold, fontSize = 18.sp, letterSpacing = 2.sp),
                 color = Ink.text)
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.size(6.dp).clip(CircleShape)
+                .background(if (valueCount > 0) Ink.accent else Ink.faint))
             Spacer(Modifier.weight(1f))
             Text(if (loading) "SENK…" else "7 GÜN", style = LabelMono, color = Ink.faint)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(6.dp).clip(CircleShape)
-                .background(if (valueCount > 0) Ink.accent else Ink.faint))
-            Spacer(Modifier.width(9.dp))
             HeaderStat("$matchCount", "MAÇ")
             HeaderSep()
             HeaderStat("$valueCount", "DEĞER", if (valueCount > 0) Ink.signal else Ink.muted)
@@ -302,7 +307,7 @@ private fun HeaderSep() =
 private fun DayDivider(label: String, count: Int, accent: Boolean = false) {
     Row(
         Modifier.fillMaxWidth().background(Ink.base)
-            .padding(start = 20.dp, end = 20.dp, top = 17.dp, bottom = 7.dp),
+            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = LabelMono.copy(fontSize = 12.sp),
@@ -318,7 +323,7 @@ private fun DayDivider(label: String, count: Int, accent: Boolean = false) {
 fun LeagueTabs(leagues: List<String>, selected: String?, onSelect: (String?) -> Unit) {
     androidx.compose.foundation.lazy.LazyRow(
         Modifier.fillMaxWidth().background(Ink.base),
-        contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 10.dp),
+        contentPadding = PaddingValues(18.dp, 6.dp, 18.dp, 8.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         item { LeagueChip("TÜMÜ", selected == null) { onSelect(null) } }
@@ -414,40 +419,41 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick)
             .height(IntrinsicSize.Min)
-            .background(if (hasVal) Ink.accent.copy(alpha = 0.035f) else Color.Transparent)
+            .background(if (hasVal) Ink.accent.copy(alpha = 0.05f) else Color.Transparent),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.width(4.dp).fillMaxHeight().background(spineColor))
+        Box(Modifier.width(3.dp).fillMaxHeight().background(spineColor))
         Column(
-            Modifier.weight(1f).padding(start = 16.dp, top = 13.dp, bottom = 13.dp, end = 10.dp)
+            Modifier.weight(1f).padding(start = 13.dp, top = 9.dp, bottom = 9.dp, end = 8.dp)
         ) {
-            Text(m.league.name.uppercase(ROOT), style = LabelMono.copy(fontSize = 9.sp),
+            Text(m.league.name.uppercase(ROOT), style = LabelMono.copy(fontSize = 8.5.sp),
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(8.dp))
-            TeamLine(hc, homeColor, homeName, hasModel && pickIdx == 0, if (isLive) m.homeGoals else null)
             Spacer(Modifier.height(5.dp))
-            TeamLine(ac, awayColor, awayName, hasModel && pickIdx == 2, if (isLive) m.awayGoals else null)
+            TeamLine(hc, homeColor, m.home.crestUrl, homeName, hasModel && pickIdx == 0,
+                if (isLive) m.homeGoals else null)
+            Spacer(Modifier.height(2.dp))
+            TeamLine(ac, awayColor, m.away.crestUrl, awayName, hasModel && pickIdx == 2,
+                if (isLive) m.awayGoals else null)
             if (hasModel) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(7.dp))
                 SegBar(h, d, a, homeColor)
             } else if (isLive) {
-                Spacer(Modifier.height(9.dp))
+                Spacer(Modifier.height(5.dp))
                 Text("CANLI SKOR · model bu lig için kalibre değil",
                     style = LabelMono.copy(fontSize = 8.5.sp), color = Ink.faint, maxLines = 1)
             }
         }
         Column(
-            Modifier.fillMaxHeight().width(84.dp)
-                .padding(end = 16.dp, top = 13.dp, bottom = 13.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Center
+            Modifier.width(72.dp).padding(end = 13.dp, top = 9.dp, bottom = 9.dp),
+            horizontalAlignment = Alignment.End
         ) {
             Text(if (isLive) "${m.minute ?: 0}'" else kickoff,
                 style = LabelMono, color = if (isLive) Ink.live else Ink.faint,
                 maxLines = 1, softWrap = false)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(5.dp))
             if (isLive) {
                 Text("${m.homeGoals ?: 0}–${m.awayGoals ?: 0}",
-                    style = MaterialTheme.typography.displaySmall.copy(fontSize = 22.sp),
+                    style = MaterialTheme.typography.displaySmall.copy(fontSize = 20.sp),
                     color = Ink.text, maxLines = 1, softWrap = false)
             } else {
                 Row(verticalAlignment = Alignment.Bottom) {
@@ -455,19 +461,19 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
                         maxLines = 1, softWrap = false)
                     Spacer(Modifier.width(4.dp))
                     Text(pct0(pickProb),
-                        style = MaterialTheme.typography.displaySmall.copy(fontSize = 21.sp),
+                        style = MaterialTheme.typography.displaySmall.copy(fontSize = 20.sp),
                         color = Ink.text, maxLines = 1, softWrap = false)
                 }
             }
             if (hasVal) {
                 Spacer(Modifier.height(5.dp))
                 Box(
-                    Modifier.clip(RoundedCornerShape(4.dp)).background(Ink.signal)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                    Modifier.clip(RoundedCornerShape(3.dp)).background(Ink.signal)
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         "+EV " + String.format(Locale.US, "%.1f", m.bestEdgePct!! * 100),
-                        style = LabelMono.copy(fontSize = 10.sp, letterSpacing = 0.4.sp),
+                        style = LabelMono.copy(fontSize = 9.5.sp, letterSpacing = 0.3.sp),
                         color = Color(0xFF04231A), maxLines = 1, softWrap = false
                     )
                 }
@@ -477,16 +483,17 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TeamLine(code: String, color: Color, name: String, isPick: Boolean, score: Int?) {
+private fun TeamLine(code: String, color: Color, url: String?, name: String, isPick: Boolean, score: Int?) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Crest(code, color, 26.dp)
-        Spacer(Modifier.width(11.dp))
-        Text(name.uppercase(ROOT), style = MaterialTheme.typography.titleMedium,
+        Crest(code, color, 20.dp, url)
+        Spacer(Modifier.width(9.dp))
+        Text(name.uppercase(ROOT),
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp),
             color = if (isPick) Ink.text else Ink.muted,
             fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         if (score != null) Text("$score",
-            style = MaterialTheme.typography.displaySmall.copy(fontSize = 18.sp), color = Ink.text)
+            style = MaterialTheme.typography.displaySmall.copy(fontSize = 17.sp), color = Ink.text)
     }
 }
 

@@ -5,10 +5,12 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.sp
 import com.ahmet.edge.R
 
@@ -64,16 +66,25 @@ val PlexMono = BarlowCondensed
 
 private const val tnum = "tnum"
 
+// Barlow'un dahili satır metrikleri gevşek — font-padding kapat, sıkı satır yüksekliği ver.
+private val Tight = PlatformTextStyle(includeFontPadding = false)
+private val LHS = LineHeightStyle(
+    alignment = LineHeightStyle.Alignment.Center,
+    trim = LineHeightStyle.Trim.Both
+)
+
 /** Bölüm / etiket başlığı — sıkıştırılmış, seyrek, büyük harf (call-site'ta uppercase). */
 val LabelMono = TextStyle(
     fontFamily = BarlowCondensed, fontWeight = FontWeight.Medium,
-    fontSize = 11.sp, letterSpacing = 0.9.sp
+    fontSize = 11.sp, lineHeight = 12.sp, letterSpacing = 0.9.sp,
+    platformStyle = Tight, lineHeightStyle = LHS
 )
 
 /** Rakam bloğu — olasılık, oran, skor, tutar. Tabular. */
 val DataStyle = TextStyle(
     fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
-    fontFeatureSettings = tnum, letterSpacing = 0.3.sp, fontSize = 14.sp
+    fontFeatureSettings = tnum, letterSpacing = 0.3.sp, fontSize = 14.sp, lineHeight = 15.sp,
+    platformStyle = Tight, lineHeightStyle = LHS
 )
 
 private val Dark = darkColorScheme(
@@ -85,26 +96,28 @@ private val Dark = darkColorScheme(
     outline = Ink.line, error = Ink.caution,
 )
 
+private fun cond(size: Int, weight: FontWeight, ls: Double = 0.3, lh: Int = 0) = TextStyle(
+    fontFamily = BarlowCondensed, fontWeight = weight, fontSize = size.sp,
+    lineHeight = (if (lh > 0) lh else size + 2).sp, letterSpacing = ls.sp,
+    fontFeatureSettings = tnum, platformStyle = Tight, lineHeightStyle = LHS,
+)
+
+private fun sans(size: Double, weight: FontWeight, lh: Double) = TextStyle(
+    fontFamily = Barlow, fontWeight = weight, fontSize = size.sp, lineHeight = lh.sp,
+    platformStyle = Tight, lineHeightStyle = LHS,
+)
+
 private val EdgeType = Typography(
-    displaySmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Bold,
-        fontSize = 32.sp, letterSpacing = 0.4.sp, fontFeatureSettings = tnum),
-    headlineSmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Bold,
-        fontSize = 22.sp, letterSpacing = 0.4.sp),
-    titleLarge = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp, letterSpacing = 0.3.sp),
-    titleMedium = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp, letterSpacing = 0.2.sp),
-    bodyLarge = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
-        fontSize = 14.sp, lineHeight = 20.sp),
-    bodyMedium = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
-        fontSize = 12.5.sp, lineHeight = 18.sp),
-    bodySmall = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.Normal,
-        fontSize = 11.5.sp, lineHeight = 16.sp, color = Ink.muted),
-    labelLarge = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp, letterSpacing = 0.3.sp),
+    displaySmall = cond(32, FontWeight.Bold, 0.4),
+    headlineSmall = cond(22, FontWeight.Bold, 0.4),
+    titleLarge = cond(17, FontWeight.SemiBold, 0.3),
+    titleMedium = cond(15, FontWeight.SemiBold, 0.2),
+    bodyLarge = sans(14.0, FontWeight.Normal, 19.0),
+    bodyMedium = sans(12.5, FontWeight.Normal, 17.0),
+    bodySmall = sans(11.5, FontWeight.Normal, 15.0).copy(color = Ink.muted),
+    labelLarge = sans(13.0, FontWeight.SemiBold, 15.0).copy(letterSpacing = 0.3.sp),
     labelMedium = LabelMono,
-    labelSmall = TextStyle(fontFamily = BarlowCondensed, fontWeight = FontWeight.Medium,
-        fontSize = 10.sp, letterSpacing = 0.5.sp, fontFeatureSettings = tnum),
+    labelSmall = cond(10, FontWeight.Medium, 0.5),
 )
 
 @Composable
