@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from . import model
+from . import odds_prior as _op
 
 log = logging.getLogger(__name__)
 
@@ -105,6 +106,15 @@ def build_narrative(m: dict, home: str, away: str) -> str:
             f"model piyasayı yenmiyor, sadece daha iyi fiyat buluyor.")
     else:
         lines.append("Oynanabilir bir fiyat farkı yok; beklemede kal.")
+
+    sim = m.get("odds_similar")
+    if sim and sim.get("n", 0) >= 200:
+        nstr = f"{sim['n']:,}".replace(",", ".")
+        lines.append(
+            f"Oran profili: geçmişte bu şekilde açılan ~{nstr} maçın "
+            f"%{sim['H']*100:.0f}'i ev sahibi, %{sim['D']*100:.0f}'i beraberlik, "
+            f"%{sim['A']*100:.0f}'i deplasman kazanmış. Servis edilen olasılık bu "
+            f"tarihsel dağılıma demirli.")
 
     ih, ia = m.get("injuries_home") or 0, m.get("injuries_away") or 0
     n = max(ih, ia)
@@ -299,7 +309,7 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
                 "market_home", "market_draw", "market_away",
                 "best_edge_pct", "best_edge_sel", "best_odds", "has_value",
                 "injuries_home", "injuries_away", "status", "minute",
-                "home_goals", "away_goals")},
+                "home_goals", "away_goals", "odds_similar")},
         }
 
     # Canlı maçlar en üstte, sonra başlama saatine göre
@@ -408,17 +418,31 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
             m["pinnacle_away"] = od["pin_1x2"]["AWAY"]
 
         mp = od.get("pin_p_1x2")
+        raw = od.get("pin_1x2") or od.get("best_1x2")
         if mp:
             m["market_home"] = mp["HOME"]
             m["market_draw"] = mp["DRAW"]
             m["market_away"] = mp["AWAY"]
-            # Modelimiz kapanış oranını geçmiyor -> servis edilen olasılık
-            # %22 model + %78 piyasa. Modelin leanı görünür ama abartıya kaçmaz;
-            # ayrışma büyükse (kötü takım reytingi) bile makul kenar üretir.
-            w = 0.22
-            ph = w * m["p_home"] + (1 - w) * mp["HOME"]
-            pd_ = w * m["p_draw"] + (1 - w) * mp["DRAW"]
-            pa = w * m["p_away"] + (1 - w) * mp["AWAY"]
+
+            # Oranlardan tarihsel-kalibre olasılık (227k maç). Piyasayı yenmez
+            # ama piyasadan biraz daha iyi kalibre; modelimiz piyasadan kötü
+            # olduğu için servis edilen olasılığı buna demirliyoruz.
+            anchor = mp
+            try:
+                if raw and _op.available():
+                    emp = _op.empirical_probs(raw["HOME"], raw["DRAW"], raw["AWAY"],
+                                              od.get("over25"), od.get("under25"))
+                    anchor = {"HOME": emp["H"], "DRAW": emp["D"], "AWAY": emp["A"]}
+                    sim = _op.similar(raw["HOME"], raw["DRAW"], raw["AWAY"])
+                    if sim:
+                        m["odds_similar"] = sim
+            except Exception:
+                anchor = mp
+
+            w = 0.28  # %28 model + %72 oran-kalibre çapa
+            ph = w * m["p_home"] + (1 - w) * anchor["HOME"]
+            pd_ = w * m["p_draw"] + (1 - w) * anchor["DRAW"]
+            pa = w * m["p_away"] + (1 - w) * anchor["AWAY"]
             s = ph + pd_ + pa
             m["p_home"], m["p_draw"], m["p_away"] = round(ph / s, 4), round(pd_ / s, 4), round(pa / s, 4)
 
