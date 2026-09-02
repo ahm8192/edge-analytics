@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
         OddsEntity::class, ContextFactorEntity::class,
         BetEntity::class, BankrollEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class EdgeDatabase : RoomDatabase() {

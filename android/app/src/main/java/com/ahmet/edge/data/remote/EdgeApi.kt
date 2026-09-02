@@ -74,7 +74,8 @@ data class MatchDto(
     @SerialName("best_odds") val bestOdds: Double? = null,
     @SerialName("best_edge_sel") val bestEdgeSel: String? = null,
     @SerialName("injuries_home") val injuriesHome: Int? = null,
-    @SerialName("injuries_away") val injuriesAway: Int? = null
+    @SerialName("injuries_away") val injuriesAway: Int? = null,
+    val minute: Int? = null
 )
 
 @Serializable data class LeagueDto(val id: Long, val name: String, val country: String,

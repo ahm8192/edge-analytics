@@ -31,7 +31,9 @@ data class Match(
     val pDraw: Double? = null,
     val pAway: Double? = null,
     val pOver25: Double? = null,
-    val pBtts: Double? = null
+    val pBtts: Double? = null,
+    /** Canlı maçta oynanan dakika. */
+    val minute: Int? = null
 )
 
 enum class MatchStatus { SCHEDULED, LIVE, FINISHED, POSTPONED }

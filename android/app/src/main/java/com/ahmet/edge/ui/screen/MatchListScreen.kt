@@ -60,7 +60,18 @@ class MatchListViewModel @Inject constructor(
     val openBets = betting.observeOpenCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    init { refresh() }
+    init {
+        refresh()
+        // Canlı maç varsa otomatik tazele
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                if (matches.value.any {
+                        it.status == com.ahmet.edge.domain.model.MatchStatus.LIVE
+                    }) refresh()
+            }
+        }
+    }
 
     fun refresh() = viewModelScope.launch {
         if (!refreshing.compareAndSet(expect = false, update = true)) return@launch
@@ -185,11 +196,23 @@ fun MatchListScreen(
                 }
             }
 
+            val live = filtered.filter { it.status == com.ahmet.edge.domain.model.MatchStatus.LIVE }
+            if (live.isNotEmpty()) {
+                item(key = "h-live") {
+                    SectionLabel("● CANLI", Modifier.padding(top = 6.dp))
+                }
+                items(live, key = { it.id }) { m -> MatchCard(m, showEdge) { onOpen(m.id) } }
+            }
+
             grouped.forEach { (day, dayMatches) ->
+                val notLive = dayMatches.filter {
+                    it.status != com.ahmet.edge.domain.model.MatchStatus.LIVE
+                }
+                if (notLive.isEmpty()) return@forEach
                 item(key = "h$day") {
                     SectionLabel(day.format(dayFmt), Modifier.padding(top = 6.dp))
                 }
-                items(dayMatches, key = { it.id }) { m ->
+                items(notLive, key = { it.id }) { m ->
                     MatchCard(m, showEdge) { onOpen(m.id) }
                 }
             }
@@ -279,14 +302,25 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     val homeName = m.home.shortName.ifBlank { m.home.name }
     val awayName = m.away.shortName.ifBlank { m.away.name }
 
+    val isLive = m.status == com.ahmet.edge.domain.model.MatchStatus.LIVE
+
     Panel(onClick = onClick, padding = PaddingValues(16.dp, 13.dp, 16.dp, 14.dp)) {
-        // üst: lig · saat  ————  güven  ⟩
+        // üst: lig · saat/canlı  ————  güven  ⟩
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(m.league.name.uppercase(TR), style = LabelMono.copy(fontSize = 10.sp),
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false))
-            Text("  ·  $kickoff", style = DataStyle.copy(fontSize = 11.sp), color = Ink.muted,
-                maxLines = 1)
+            if (isLive) {
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.size(6.dp).background(Ink.caution,
+                    androidx.compose.foundation.shape.CircleShape))
+                Spacer(Modifier.width(5.dp))
+                Text("CANLI ${m.minute ?: 0}'", style = LabelMono.copy(fontSize = 10.sp),
+                    color = Ink.caution)
+            } else {
+                Text("  ·  $kickoff", style = DataStyle.copy(fontSize = 11.sp),
+                    color = Ink.muted, maxLines = 1)
+            }
             Spacer(Modifier.weight(1f))
             ConfidenceMeter(m.modelConfidence)
             Spacer(Modifier.width(9.dp))
@@ -295,10 +329,14 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
 
         Spacer(Modifier.height(13.dp))
 
-        // eşleşme
-        MatchupSide(m.home.crestUrl, homeName, 1.0 / h.coerceAtLeast(0.01), pick == 0)
+        // eşleşme (canlıda skor, öncesinde adil oran)
+        MatchupSide(m.home.crestUrl, homeName,
+            if (isLive) null else 1.0 / h.coerceAtLeast(0.01), pick == 0,
+            score = if (isLive) m.homeGoals else null)
         Spacer(Modifier.height(9.dp))
-        MatchupSide(m.away.crestUrl, awayName, 1.0 / a.coerceAtLeast(0.01), pick == 2)
+        MatchupSide(m.away.crestUrl, awayName,
+            if (isLive) null else 1.0 / a.coerceAtLeast(0.01), pick == 2,
+            score = if (isLive) m.awayGoals else null)
 
         Spacer(Modifier.height(14.dp))
         Hairline()
@@ -325,7 +363,9 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MatchupSide(crest: String?, name: String, fairOdds: Double, isPick: Boolean) {
+private fun MatchupSide(
+    crest: String?, name: String, fairOdds: Double?, isPick: Boolean, score: Int? = null,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         TeamCrest(crest, name, 30.dp)
         Spacer(Modifier.width(12.dp))
@@ -337,8 +377,13 @@ private fun MatchupSide(crest: String?, name: String, fairOdds: Double, isPick: 
             maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        Text(fmt(fairOdds), style = DataStyle.copy(fontSize = 14.sp),
-            color = if (isPick) Ink.text else Ink.faint)
+        when {
+            score != null -> Text("$score",
+                style = DataStyle.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+                color = Ink.text)
+            fairOdds != null -> Text(fmt(fairOdds), style = DataStyle.copy(fontSize = 14.sp),
+                color = if (isPick) Ink.text else Ink.faint)
+        }
     }
 }
 

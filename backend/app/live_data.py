@@ -186,8 +186,10 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
         raise RuntimeError(f"football-data yanıt vermedi: {', '.join(failed)}")
 
     _enrich(matches, teams, list(competitions))
+    _enrich_live(matches, teams)
 
-    matches.sort(key=lambda x: x["kickoff"])
+    # Canlı maçlar en üstte, sonra başlama saatine göre
+    matches.sort(key=lambda x: (0 if x["status"] == "LIVE" else 1, x["kickoff"]))
     result = {"matches": matches, "leagues": list(leagues.values()), "teams": list(teams.values())}
     with _cache_lock:
         _cache[cache_key] = (time.monotonic(), result)
@@ -303,6 +305,36 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
                 m["best_edge_sel"] = sel
                 m["best_odds"] = round(b[sel], 2)
                 m["has_value"] = edges[sel] > 0.03
+
+
+def _enrich_live(matches: list[dict], teams: dict[int, dict]) -> None:
+    """Oynanan maçlara canlı skor + dakika + maç-içi olasılık ekler."""
+    try:
+        from . import apifootball as af
+        if not af.enabled():
+            return
+        lm = af.live_matches()
+    except Exception:
+        return
+    if not lm:
+        return
+    idx = {(_keyify(x["home"]), _keyify(x["away"])): x for x in lm}
+    for m in matches:
+        th = teams.get(m["home_team_id"], {})
+        ta = teams.get(m["away_team_id"], {})
+        live = idx.get((_keyify(th.get("name", "")), _keyify(ta.get("name", ""))))
+        if not live:
+            continue
+        code, hn, an = _MATCH_CTX.get(m["id"], (None, th.get("name"), ta.get("name")))
+        m["status"] = "LIVE"
+        m["home_goals"] = live["hg"]
+        m["away_goals"] = live["ag"]
+        m["minute"] = live["minute"]
+        if code:
+            ip = model.inplay(code, hn, an, live["hg"], live["ag"], live["minute"])
+            m["p_home"], m["p_draw"], m["p_away"] = ip["p_home"], ip["p_draw"], ip["p_away"]
+            m["p_over25"] = ip["p_over25"]
+            m["model_confidence"] = min(0.85, (m.get("model_confidence") or 0.5) + 0.15)
 
 
 def default_analysis(match_id: int) -> dict:

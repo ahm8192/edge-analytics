@@ -333,6 +333,45 @@ def lambdas(comp_code: str, home_name: str, away_name: str) -> dict:
     return probs(comp_code, home_name, away_name)
 
 
+def inplay(comp_code: str, home_name: str, away_name: str,
+           hg: int, ag: int, minute: int) -> dict:
+    """Canlı: mevcut skor + kalan süreden maç sonu 1X2 / Ü2.5 olasılığı.
+
+    Kalan gol beklentisi = maç öncesi lambda x (kalan dakika / 95).
+    Kalan skorun dağılımı + mevcut skor -> nihai sonuç.
+    """
+    c = _components(comp_code, home_name, away_name)
+    lam_h = (c["lam_home"] if c else 1.35)
+    lam_a = (c["lam_away"] if c else 1.10)
+    rho = (c["rho"] if c else -0.03)
+    rem = max(0.0, min(1.0, (95 - int(minute)) / 95.0))
+    rh, ra = lam_h * rem, lam_a * rem
+    hg, ag = int(hg), int(ag)
+
+    ph = [_pois(i, rh) for i in range(_MAXG + 1)]
+    pa = [_pois(j, ra) for j in range(_MAXG + 1)]
+    tot = wh = wd = wa = ov = 0.0
+    for i in range(_MAXG + 1):
+        for j in range(_MAXG + 1):
+            v = ph[i] * pa[j] * _tau(i, j, rh, ra, rho)
+            tot += v
+            fh, fa = hg + i, ag + j
+            if fh > fa:
+                wh += v
+            elif fh == fa:
+                wd += v
+            else:
+                wa += v
+            if fh + fa >= 3:
+                ov += v
+    return {
+        "p_home": round(wh / tot, 4), "p_draw": round(wd / tot, 4),
+        "p_away": round(wa / tot, 4), "p_over25": round(ov / tot, 4),
+        "rem_lambda_home": round(rh, 2), "rem_lambda_away": round(ra, 2),
+        "minute": int(minute),
+    }
+
+
 def explain(comp_code: str, home_name: str, away_name: str) -> dict:
     """Modelin bu maç için gol beklentisini nasıl kurduğunun dökümü."""
     c = _components(comp_code, home_name, away_name)

@@ -39,6 +39,7 @@ data class MatchEntity(
     val pAway: Double? = null,
     val pOver25: Double? = null,
     val pBtts: Double? = null,
+    val minute: Int? = null,
     /** Önbellek tazeliği — çevrimdışıyken kullanıcıya "eski veri" uyarısı için. */
     val fetchedAtEpoch: Long
 )

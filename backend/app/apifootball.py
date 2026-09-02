@@ -177,6 +177,39 @@ def odds_for_fixture(af_id: int) -> dict | None:
     return out
 
 
+# ---------------------------------------------------------------- canlı maçlar
+_live_cache: list = []
+_live_at = [0.0]
+
+
+def live_matches() -> list[dict]:
+    """Şu an oynanan, takip edilen liglerdeki maçlar (skor + dakika). ~75s önbellek."""
+    now = time.monotonic()
+    if _live_cache and now - _live_at[0] < 75:
+        return _live_cache
+    if not enabled() or not _budget_ok():
+        return _live_cache
+    data = _get("/fixtures", {"live": "all"})
+    if data is None:
+        return _live_cache
+    out = []
+    for f in data.get("response", []):
+        lg = f.get("league", {})
+        if lg.get("id") not in TRACKED:
+            continue
+        fx, tm, go, st = f["fixture"], f["teams"], f.get("goals", {}), f["fixture"]["status"]
+        out.append({
+            "af_id": fx["id"], "code": LEAGUE_ID_TO_CODE[lg["id"]],
+            "home": tm["home"]["name"], "away": tm["away"]["name"],
+            "home_id": tm["home"].get("id"), "away_id": tm["away"].get("id"),
+            "hg": go.get("home") or 0, "ag": go.get("away") or 0,
+            "minute": st.get("elapsed") or 0, "phase": st.get("short", "1H"),
+        })
+    _live_cache[:] = out
+    _live_at[0] = now
+    return out
+
+
 # ---------------------------------------------------------------- sakatlıklar
 def injuries_window(days: int = 3) -> dict[int, dict[int, int]]:
     """af_fixture_id -> {team_id: sakat oyuncu sayısı}."""
