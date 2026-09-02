@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  20,
-    "versionName":  "0.3.10",
-    "notes":  "Analiz kartina oran hareketi satiri (acilis -\u003e son oran, para hangi tarafa)"
+    "versionCode":  21,
+    "versionName":  "0.3.11",
+    "notes":  "Surum bilgisi mac listesinin altinda gorunuyor + son backend degisiklikleri"
 }
