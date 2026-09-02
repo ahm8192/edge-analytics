@@ -185,7 +185,7 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
             return cached[1]
         raise RuntimeError(f"football-data yanıt vermedi: {', '.join(failed)}")
 
-    _enrich(matches, teams)
+    _enrich(matches, teams, list(competitions))
 
     matches.sort(key=lambda x: x["kickoff"])
     result = {"matches": matches, "leagues": list(leagues.values()), "teams": list(teams.values())}
@@ -194,87 +194,94 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
     return result
 
 
-def _enrich(matches: list[dict], teams: dict[int, dict]) -> None:
-    """Yakın maçları API-Football ile zenginleştir: Pinnacle + sakatlık + +EV."""
-    try:
-        from . import apifootball as af
-    except Exception:
-        return
-    if not af.enabled():
-        return
-    try:
-        fixw = af.fixtures_window(3)
-        injw = af.injuries_window(3)
-    except Exception:
-        return
-    if not fixw:
-        return
+_BR = {  # football-data.org tam adı (normalize) -> yaygın kısa ad
+    "queens park rangers": "qpr", "west bromwich albion": "west brom",
+    "sheffield wednesday": "sheffield weds", "wolverhampton wanderers": "wolves",
+    "brighton hove albion": "brighton", "tottenham hotspur": "tottenham",
+    "manchester united": "manchester utd", "newcastle united": "newcastle",
+    "west ham united": "west ham", "leeds united": "leeds",
+    "afc bournemouth": "bournemouth", "1 fc koln": "koln",
+    "bayer 04 leverkusen": "bayer leverkusen", "1 fsv mainz 05": "mainz",
+    "rc celta de vigo": "celta vigo", "club atletico de madrid": "atletico madrid",
+    "real betis balompie": "real betis", "rcd espanyol de barcelona": "espanyol",
+    "borussia monchengladbach": "monchengladbach", "eintracht frankfurt": "eintracht frankfurt",
+}
 
+
+def _keyify(s: str) -> str:
+    from .model import _norm
+    n = _norm(s)
+    return _BR.get(n, n)
+
+
+def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]) -> None:
+    """Yaklaşan maçları oran + sakatlık ile zenginleştir: Pinnacle referansı + +EV."""
     import difflib
 
-    from .model import _norm  # aynı isim normalizasyonu
+    # 1) Oranlar — The Odds API (tam fikstür) birincil
+    odx: dict = {}
+    try:
+        from . import theoddsapi as toa
+        if toa.enabled():
+            for row in toa.odds_rows(competitions):
+                odx[(_keyify(row["home"]), _keyify(row["away"]), row["date"])] = row
+    except Exception:
+        odx = {}
 
-    # football-data.org tam adı (normalize) -> API-Football yaygın adı (normalize)
-    _BR = {
-        "queens park rangers": "qpr", "west bromwich albion": "west brom",
-        "sheffield wednesday": "sheffield weds", "wolverhampton wanderers": "wolves",
-        "brighton hove albion": "brighton", "tottenham hotspur": "tottenham",
-        "manchester united": "manchester utd", "newcastle united": "newcastle",
-        "nottingham forest": "nottingham forest", "west ham united": "west ham",
-        "leeds united": "leeds", "afc bournemouth": "bournemouth",
-        "borussia monchengladbach": "borussia monchengladbach",
-        "1 fc koln": "fc koln", "bayer 04 leverkusen": "bayer leverkusen",
-        "1 fsv mainz 05": "mainz 05", "rc celta de vigo": "celta vigo",
-        "club atletico de madrid": "atletico madrid", "athletic club": "athletic club",
-        "real betis balompie": "real betis", "rcd espanyol de barcelona": "espanyol",
-    }
+    # 2) Sakatlıklar — API-Football (dar pencere), best-effort
+    injw: dict = {}
+    af_idx: dict = {}
+    try:
+        from . import apifootball as af
+        if af.enabled():
+            for fx in af.fixtures_window(3):
+                af_idx[(_keyify(fx["home"]), _keyify(fx["away"]), fx["date"])] = fx
+            injw = af.injuries_window(3)
+    except Exception:
+        injw, af_idx = {}, {}
 
-    def keyify(s: str) -> str:
-        n = _norm(s)
-        return _BR.get(n, n)
+    if not odx and not injw:
+        return
 
-    by_date: dict[str, list] = {}
-    for fx in fixw:
-        by_date.setdefault(fx["date"], []).append(fx)
+    odx_by_date: dict[str, list] = {}
+    for (h, a, d), v in odx.items():
+        odx_by_date.setdefault(d, []).append((h, a, v))
 
-    def find(hn: str, an: str, d: str):
-        cands = by_date.get(d, [])
-        h, a = keyify(hn), keyify(an)
-        for fx in cands:
-            if keyify(fx["home"]) == h and keyify(fx["away"]) == a:
-                return fx
-        best, bestsc = None, 0.0
-        for fx in cands:
-            sc = (difflib.SequenceMatcher(None, h, keyify(fx["home"])).ratio()
-                  + difflib.SequenceMatcher(None, a, keyify(fx["away"])).ratio()) / 2
-            if sc > bestsc:
-                best, bestsc = fx, sc
-        return best if bestsc >= 0.70 else None
+    def find_odds(hk: str, ak: str, d: str):
+        exact = odx.get((hk, ak, d))
+        if exact:
+            return exact
+        best, sc = None, 0.0
+        for h, a, v in odx_by_date.get(d, []):
+            s = (difflib.SequenceMatcher(None, hk, h).ratio()
+                 + difflib.SequenceMatcher(None, ak, a).ratio()) / 2
+            if s > sc:
+                best, sc = v, s
+        return best if sc >= 0.78 else None
 
     for m in matches:
         th = teams.get(m["home_team_id"], {})
         ta = teams.get(m["away_team_id"], {})
         d = m["kickoff"][:10]
-        fx = find(th.get("name", ""), ta.get("name", ""), d)
-        if fx is None:
-            continue
-
-        inj = injw.get(fx["af_id"], {})
-        ih = inj.get(fx.get("home_id"), 0)
-        ia = inj.get(fx.get("away_id"), 0)
+        hk, ak = _keyify(th.get("name", "")), _keyify(ta.get("name", ""))
         code, hn, an = _MATCH_CTX.get(m["id"], (None, th.get("name"), ta.get("name")))
-        if code and (ih or ia):
-            p = model.probs(code, hn, an, inj_home=ih, inj_away=ia)
-            m.update({"p_home": p["p_home"], "p_draw": p["p_draw"], "p_away": p["p_away"],
-                      "p_over25": p["p_over25"], "p_btts": p["p_btts"],
-                      "lambda_home": p["lambda_home"], "lambda_away": p["lambda_away"]})
+
+        # sakatlık
+        ih = ia = 0
+        af_fx = af_idx.get((hk, ak, d))
+        if af_fx:
+            inj = injw.get(af_fx["af_id"], {})
+            ih = inj.get(af_fx.get("home_id"), 0)
+            ia = inj.get(af_fx.get("away_id"), 0)
+            if code and (ih >= 2 or ia >= 2):
+                p = model.probs(code, hn, an, inj_home=ih, inj_away=ia)
+                m.update({"p_home": p["p_home"], "p_draw": p["p_draw"], "p_away": p["p_away"],
+                          "p_over25": p["p_over25"], "p_btts": p["p_btts"],
+                          "lambda_home": p["lambda_home"], "lambda_away": p["lambda_away"]})
         m["injuries_home"], m["injuries_away"] = int(ih), int(ia)
 
-        od = None
-        try:
-            od = af.odds_for_fixture(fx["af_id"])
-        except Exception:
-            od = None
+        # oran + edge
+        od = find_odds(hk, ak, d)
         if not od:
             continue
         _MATCH_ODDS[m["id"]] = od

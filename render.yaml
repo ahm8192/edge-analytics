@@ -9,8 +9,11 @@ services:
     envVars:
       - key: FOOTBALL_DATA_TOKEN
         sync: false
-      # API-Football (api-sports.io) ücretsiz anahtar — Pinnacle oranı + sakatlık
+      # API-Football (api-sports.io) ücretsiz anahtar — sakatlık verisi
       - key: API_FOOTBALL_KEY
+        sync: false
+      # The Odds API (the-odds-api.com) ücretsiz anahtar — Pinnacle + 20+ bahisçi
+      - key: ODDS_API_KEY
         sync: false
       # Ucretsiz plan dakikada ~10 istek; onbellek + throttle ile 9 lig guvenli.
       - key: FOOTBALL_DATA_COMPETITIONS
