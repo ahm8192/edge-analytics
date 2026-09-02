@@ -33,6 +33,7 @@ fun MatchDetailScreen(
     vm: MatchDetailViewModel = hiltViewModel()
 ) {
     val ui by vm.ui.collectAsState()
+    val summary by vm.summary.collectAsState()
     val movement by vm.movement.collectAsState()
     val recentOutcomes by vm.recentOutcomes.collectAsState()
     val averageStake by vm.averageStake.collectAsState()
@@ -79,6 +80,28 @@ fun MatchDetailScreen(
             contentPadding = PaddingValues(16.dp, 14.dp, 16.dp, 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // ---- Yapay zeka maç analizi -------------------------------
+            (summary?.live ?: summary?.summary)?.let { txt ->
+                item {
+                    val isLive = summary?.live != null
+                    Column(Modifier.fillMaxWidth()) {
+                        SectionLabel(if (isLive) "Canlı analiz" else "Maç analizi")
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))
+                                .background(if (isLive) Ink.live.copy(alpha = 0.08f) else Ink.surface)
+                                .border(
+                                    1.dp,
+                                    if (isLive) Ink.live.copy(alpha = 0.4f) else Ink.line,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(14.dp)
+                        ) {
+                            Text(txt, style = MaterialTheme.typography.bodyMedium, color = Ink.text)
+                        }
+                    }
+                }
+            }
+
             // ---- Model projeksiyonu ------------------------------------
             m?.let { mm ->
                 item {

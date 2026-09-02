@@ -96,6 +96,8 @@ data class AnalysisDto(
     @SerialName("model_confidence") val modelConfidence: Double,
     @SerialName("context_factors") val contextFactors: List<ContextFactorDto> = emptyList(),
     @SerialName("explanation") val explanation: Map<String, Double> = emptyMap(),
+    val summary: String? = null,
+    @SerialName("live_summary") val liveSummary: String? = null,
     @SerialName("quota_remaining") val quotaRemaining: Int = -1
 )
 

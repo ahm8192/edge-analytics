@@ -195,6 +195,21 @@ fun MatchListScreen(
                 items(live, key = { it.id }) { m ->
                     MatchCard(m, showEdge) { onOpen(m.id) }; Hairline()
                 }
+            } else if (filtered.isNotEmpty()) {
+                item(key = "h-live-empty") {
+                    val next = remember(filtered) {
+                        filtered.filter { it.status == com.ahmet.edge.domain.model.MatchStatus.SCHEDULED }
+                            .minByOrNull { it.kickoff }
+                            ?.kickoff?.atZone(ZoneId.systemDefault())?.format(timeFmt)
+                    }
+                    DayDivider("● CANLI", 0, accent = true)
+                    Text(
+                        if (next != null) "Şu an takip edilen liglerde canlı maç yok · sıradaki $next"
+                        else "Şu an takip edilen liglerde canlı maç yok",
+                        style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 4.dp)
+                    )
+                }
             }
 
             grouped.forEach { (day, dayMatches) ->

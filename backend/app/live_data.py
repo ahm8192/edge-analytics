@@ -35,6 +35,105 @@ _last_request_at = 0.0
 _MATCH_CTX: dict[int, tuple[str, str, str]] = {}
 # match_id -> API-Football oran bloğu — /odds için
 _MATCH_ODDS: dict[int, dict] = {}
+# match_id -> son zenginleştirilmiş maç sözlüğü — /analysis metni için
+_MATCH_SNAP: dict[int, dict] = {}
+
+
+def _tempo(lh: float, la: float) -> str:
+    t = (lh or 0) + (la or 0)
+    if t < 2.3:
+        return "düşük"
+    if t < 3.0:
+        return "orta"
+    return "yüksek"
+
+
+def _conf_word(c: float) -> str:
+    if c >= 0.66:
+        return "yüksek"
+    if c >= 0.45:
+        return "orta"
+    return "düşük"
+
+
+def build_narrative(m: dict, home: str, away: str) -> str:
+    """Modelin kendi sayılarından Türkçe maç analizi paragrafı üretir.
+    LLM yok — modelin gerekçesini düz yazıya döker."""
+    ph = m.get("p_home") or 0.34
+    pd = m.get("p_draw") or 0.33
+    pa = m.get("p_away") or 0.33
+    lh = m.get("lambda_home") or 1.35
+    la = m.get("lambda_away") or 1.10
+    conf = m.get("model_confidence") or 0.4
+    lines: list[str] = []
+
+    top = max(ph, pd, pa)
+    if top == pd:
+        lines.append(
+            f"Model beraberliğe %{pd*100:.0f} veriyor; açık favori yok, "
+            f"{home} %{ph*100:.0f} · {away} %{pa*100:.0f}.")
+    else:
+        fav, fp = (home, ph) if ph >= pa else (away, pa)
+        oth = f"{home} %{ph*100:.0f} · beraberlik %{pd*100:.0f} · {away} %{pa*100:.0f}"
+        lines.append(f"Model {fav} tarafını %{fp*100:.0f} ile öne alıyor. Dağılım: {oth}.")
+
+    lines.append(
+        f"Beklenen gol çizgisi {lh:.2f} – {la:.2f}; {_tempo(lh, la)} tempolu bir maç. "
+        f"2.5 üst %{(m.get('p_over25') or 0.5)*100:.0f}, KG var %{(m.get('p_btts') or 0.5)*100:.0f}.")
+
+    mh, md, ma = m.get("market_home"), m.get("market_draw"), m.get("market_away")
+    if mh and md and ma:
+        model_pick = "1" if top == ph else ("X" if top == pd else "2")
+        mk = {"1": mh, "X": md, "2": ma}[model_pick]
+        diff = top - mk
+        if abs(diff) < 0.03:
+            lines.append(
+                f"Piyasa da aynı yönde (adil %{mk*100:.0f}) — model burada piyasadan "
+                f"anlamlı ayrışmıyor.")
+        else:
+            yön = "daha olası" if diff > 0 else "daha az olası"
+            lines.append(
+                f"Piyasa bu sonucu %{mk*100:.0f} fiyatlıyor; model {yön} görüyor "
+                f"(%{top*100:.0f}).")
+
+    if m.get("has_value") and m.get("best_edge_pct") and m.get("best_odds"):
+        sel = {"HOME": "ev sahibi", "DRAW": "beraberlik", "AWAY": "deplasman"}.get(
+            m.get("best_edge_sel", ""), m.get("best_edge_sel", ""))
+        lines.append(
+            f"Değer {sel} tarafında: en iyi {m['best_odds']:.2f} oranı Pinnacle'ın "
+            f"adil fiyatını +%{m['best_edge_pct']*100:.1f} geçiyor. Oran avı — "
+            f"model piyasayı yenmiyor, sadece daha iyi fiyat buluyor.")
+    else:
+        lines.append("Oynanabilir bir fiyat farkı yok; beklemede kal.")
+
+    ih, ia = m.get("injuries_home") or 0, m.get("injuries_away") or 0
+    if ih >= 2 or ia >= 2:
+        who = home if ih >= ia else away
+        n = max(ih, ia)
+        lines.append(f"{who} kadrosunda {n} önemli eksik var; hücum beklentisi buna göre kısıldı.")
+
+    lines.append(
+        f"Model güveni {_conf_word(conf)}. Tek maç sonucu şansa açık — anlamlı sinyal "
+        f"yüzlerce bahis sonrasında ortaya çıkar, tek maça göre kasa ayarlama.")
+    return " ".join(lines)
+
+
+def build_live_narrative(m: dict, home: str, away: str) -> str:
+    mn = m.get("minute") or 0
+    hg = m.get("home_goals") or 0
+    ag = m.get("away_goals") or 0
+    ph = m.get("p_home") or 0.34
+    pd = m.get("p_draw") or 0.33
+    pa = m.get("p_away") or 0.33
+    top = max(ph, pd, pa)
+    sel = home if top == ph else ("beraberlik" if top == pd else away)
+    rem = max(0, 95 - mn)
+    return (
+        f"Dakika {mn}, skor {hg}–{ag}. Kalan ~{rem} dakikada model {sel} sonucuna "
+        f"%{top*100:.0f} veriyor ({home} %{ph*100:.0f} · X %{pd*100:.0f} · "
+        f"{away} %{pa*100:.0f}). 2.5 üst %{(m.get('p_over25') or 0.4)*100:.0f}. "
+        f"Skor değiştikçe bu oranlar hızla kayar; canlı bahiste sadece net bir "
+        f"fiyat farkı görürsen gir.")
 
 
 def match_odds(match_id: int) -> dict:
@@ -187,6 +286,20 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
 
     _enrich(matches, teams, list(competitions))
     _enrich_live(matches, teams)
+
+    # /analysis metni için son durumu sakla
+    _tn = {t["id"]: (t.get("name") or "") for t in teams.values()}
+    for _m in matches:
+        _MATCH_SNAP[int(_m["id"])] = {
+            "home": _tn.get(_m["home_team_id"], ""), "away": _tn.get(_m["away_team_id"], ""),
+            **{k: _m.get(k) for k in (
+                "p_home", "p_draw", "p_away", "p_over25", "p_btts",
+                "lambda_home", "lambda_away", "model_confidence",
+                "market_home", "market_draw", "market_away",
+                "best_edge_pct", "best_edge_sel", "best_odds", "has_value",
+                "injuries_home", "injuries_away", "status", "minute",
+                "home_goals", "away_goals")},
+        }
 
     # Canlı maçlar en üstte, sonra başlama saatine göre
     matches.sort(key=lambda x: (0 if x["status"] == "LIVE" else 1, x["kickoff"]))
@@ -363,4 +476,15 @@ def default_analysis(match_id: int) -> dict:
     out = model.explain(code, home, away)
     out["match_id"] = int(match_id)
     out["quota_remaining"] = -1
+
+    snap = _MATCH_SNAP.get(int(match_id))
+    if snap:
+        hn = snap.get("home") or home
+        an = snap.get("away") or away
+        try:
+            out["summary"] = build_narrative(snap, hn, an)
+            if snap.get("status") == "LIVE":
+                out["live_summary"] = build_live_narrative(snap, hn, an)
+        except Exception:  # metin üretimi asla /analysis'i düşürmesin
+            pass
     return out

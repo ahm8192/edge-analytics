@@ -6,6 +6,7 @@ import com.ahmet.edge.data.remote.EdgeApi
 import com.ahmet.edge.domain.model.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import java.time.Instant
@@ -104,6 +105,12 @@ class MatchRepository @Inject constructor(
         AppError.Offline
     }
 
+    /** Yapay zeka maç analizi metni — bellek içi (Room migrasyonu gerektirmez). */
+    data class AnalysisText(val summary: String?, val live: String?)
+    private val _summaries = MutableStateFlow<Map<Long, AnalysisText>>(emptyMap())
+    fun observeSummary(matchId: Long): Flow<AnalysisText?> =
+        _summaries.map { it[matchId] }
+
     suspend fun refreshAnalysis(matchId: Long): AppError? = try {
         val resp = api.analysis(matchId)
         if (resp.isSuccessful) {
@@ -111,6 +118,9 @@ class MatchRepository @Inject constructor(
             contextDao.upsert(a.contextFactors.map {
                 ContextFactorEntity(matchId, it.label, it.value, it.impact, it.note)
             })
+            if (a.summary != null || a.liveSummary != null) {
+                _summaries.value = _summaries.value + (matchId to AnalysisText(a.summary, a.liveSummary))
+            }
             null
         } else mapError(resp.code(), resp.errorBody()?.string())
     } catch (e: Exception) { AppError.Offline }

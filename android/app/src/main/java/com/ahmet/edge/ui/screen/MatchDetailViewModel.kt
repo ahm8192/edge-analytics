@@ -125,6 +125,11 @@ class MatchDetailViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MatchDetailUi())
 
+    /** Yapay zeka maç analizi metni (modelin gerekçesi düz yazıya dökülmüş). */
+    val summary: StateFlow<MatchRepository.AnalysisText?> =
+        matches.observeSummary(matchId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
