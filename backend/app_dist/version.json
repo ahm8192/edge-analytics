@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  22,
-    "versionName":  "0.3.12",
-    "notes":  "Mac listesi sikilastirildi + gercek kulup armalari"
+    "versionCode":  23,
+    "versionName":  "0.3.13",
+    "notes":  "Deger tablosu: Pinnacle-adili gecen tum kitap/secim listesi (belgelenmis +EV yonu)"
 }
