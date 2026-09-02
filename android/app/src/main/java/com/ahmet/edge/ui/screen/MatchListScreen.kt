@@ -374,10 +374,10 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick)
             .height(IntrinsicSize.Min)
-            .background(if (hasVal) Ink.accent.copy(alpha = 0.045f) else Color.Transparent)
+            .background(if (hasVal) Ink.accent.copy(alpha = 0.03f) else Color.Transparent)
     ) {
         Box(
-            Modifier.width(3.dp).fillMaxHeight().background(
+            Modifier.width(2.dp).fillMaxHeight().background(
                 when {
                     hasVal -> Ink.accent
                     isLive -> Ink.caution
@@ -386,38 +386,46 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
             )
         )
         Column(
-            Modifier.weight(1f).padding(start = 17.dp, top = 13.dp, bottom = 13.dp, end = 12.dp)
+            Modifier.weight(1f).padding(start = 18.dp, top = 12.dp, bottom = 12.dp, end = 10.dp)
         ) {
             Text(m.league.name.uppercase(ROOT), style = LabelMono.copy(fontSize = 9.sp),
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(7.dp))
             TeamLine(hc, homeName, pickIdx == 0, if (isLive) m.homeGoals else null)
-            Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(4.dp))
             TeamLine(ac, awayName, pickIdx == 2, if (isLive) m.awayGoals else null)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(9.dp))
             SegBar(h, d, a)
         }
         Column(
-            Modifier.fillMaxHeight().width(60.dp)
-                .padding(end = 18.dp, top = 13.dp, bottom = 13.dp),
+            Modifier.fillMaxHeight().width(82.dp)
+                .padding(end = 16.dp, top = 12.dp, bottom = 12.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.Center
         ) {
             Text(if (isLive) "${m.minute ?: 0}'" else kickoff,
-                style = LabelMono, color = if (isLive) Ink.caution else Ink.faint)
-            if (!isLive) {
-                Spacer(Modifier.height(7.dp))
+                style = LabelMono, color = if (isLive) Ink.caution else Ink.faint,
+                maxLines = 1, softWrap = false)
+            if (isLive) {
+                Spacer(Modifier.height(6.dp))
+                Text("${m.homeGoals ?: 0}–${m.awayGoals ?: 0}",
+                    style = DataStyle.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+                    color = Ink.text, maxLines = 1, softWrap = false)
+            } else {
+                Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(pickLabel, style = LabelMono.copy(fontSize = 11.sp), color = Ink.accent)
-                    Spacer(Modifier.width(3.dp))
-                    Text(pct0(pickProb), style = DataStyle.copy(fontSize = 19.sp,
-                        fontWeight = FontWeight.SemiBold), color = Ink.text)
+                    Text(pickLabel, style = LabelMono.copy(fontSize = 10.sp), color = Ink.accent)
+                    Spacer(Modifier.width(4.dp))
+                    Text(pct0(pickProb), style = DataStyle.copy(fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold), color = Ink.text,
+                        maxLines = 1, softWrap = false)
                 }
             }
             if (hasVal) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(3.dp))
                 Text(signedPct(m.bestEdgePct!!),
-                    style = LabelMono.copy(fontSize = 11.sp), color = Ink.signal)
+                    style = LabelMono.copy(fontSize = 11.sp), color = Ink.signal,
+                    maxLines = 1, softWrap = false)
             }
         }
     }
