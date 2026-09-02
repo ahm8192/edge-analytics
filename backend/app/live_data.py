@@ -291,20 +291,34 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
             m["pinnacle_home"] = od["pin_1x2"]["HOME"]
             m["pinnacle_draw"] = od["pin_1x2"]["DRAW"]
             m["pinnacle_away"] = od["pin_1x2"]["AWAY"]
-        if "pin_p_1x2" in od:
-            m["market_home"] = od["pin_p_1x2"]["HOME"]
-            m["market_draw"] = od["pin_p_1x2"]["DRAW"]
-            m["market_away"] = od["pin_p_1x2"]["AWAY"]
-        if "best_1x2" in od:
-            b = od["best_1x2"]
-            pm = {"HOME": m["p_home"], "DRAW": m["p_draw"], "AWAY": m["p_away"]}
-            edges = {k: pm[k] * b[k] - 1.0 for k in ("HOME", "DRAW", "AWAY") if b.get(k)}
-            if edges:
-                sel = max(edges, key=edges.get)
-                m["best_edge_pct"] = round(edges[sel], 4)
-                m["best_edge_sel"] = sel
-                m["best_odds"] = round(b[sel], 2)
-                m["has_value"] = edges[sel] > 0.03
+
+        mp = od.get("pin_p_1x2")
+        if mp:
+            m["market_home"] = mp["HOME"]
+            m["market_draw"] = mp["DRAW"]
+            m["market_away"] = mp["AWAY"]
+            # Modelimiz kapanış oranını geçmiyor -> servis edilen olasılık
+            # %35 model + %65 piyasa. Modelin leanı görünür ama sapıtmaz.
+            w = 0.35
+            ph = w * m["p_home"] + (1 - w) * mp["HOME"]
+            pd_ = w * m["p_draw"] + (1 - w) * mp["DRAW"]
+            pa = w * m["p_away"] + (1 - w) * mp["AWAY"]
+            s = ph + pd_ + pa
+            m["p_home"], m["p_draw"], m["p_away"] = round(ph / s, 4), round(pd_ / s, 4), round(pa / s, 4)
+
+        b = od.get("best_1x2")
+        if b and mp:
+            # +EV = en iyi oran, Pinnacle'ın adil fiyatını geçiyor mu (oran avı)
+            shop = {k: b[k] * mp[k] - 1.0 for k in ("HOME", "DRAW", "AWAY")
+                    if b.get(k) and mp.get(k)}
+            if shop:
+                sel = max(shop, key=shop.get)
+                e = shop[sel]
+                if 0.005 < e < 0.15:  # gerçekçi bant; üstü veri/eşleşme hatası
+                    m["best_edge_pct"] = round(e, 4)
+                    m["best_edge_sel"] = sel
+                    m["best_odds"] = round(b[sel], 2)
+                    m["has_value"] = e > 0.02
 
 
 def _enrich_live(matches: list[dict], teams: dict[int, dict]) -> None:
