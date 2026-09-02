@@ -131,10 +131,13 @@ def odds_rows(codes: list[str]) -> list[dict]:
 _SHARP = {"pinnacle", "betfair_ex_eu", "betfair_ex_uk", "smarkets", "matchbook"}
 
 
-def value_from_row(row: dict, min_edge: float = 0.02, max_edge: float = 0.20) -> list[dict]:
+def value_from_row(row: dict, min_edge: float = 0.02, max_edge: float = 0.08) -> list[dict]:
     """Pinnacle'ı 'gerçek' kabul et; her kitabın her seçimini onun adil fiyatıyla
     karşılaştır. book_odds * pin_fair_prob - 1 pozitifse değer bahsi.
-    (Yayınlanmış strateji: zayıf kitap > Pinnacle-adil ~ %3.6 ROI / 14 sezon.)"""
+    (Yayınlanmış strateji: zayıf kitap > Pinnacle-adil ~ %3.6 ROI / 14 sezon.)
+
+    Sadece güvenilir aralık: adil olasılık %12-88 (uç longshot/favoride devig
+    güvenilmez, oradaki 'kenar' gürültüdür). Kenar bandı %2-8 — üstü bayat çizgi."""
     pin = row.get("pin_1x2")
     fair = row.get("pin_p_1x2")
     if not pin or not fair:
@@ -146,7 +149,7 @@ def value_from_row(row: dict, min_edge: float = 0.02, max_edge: float = 0.20) ->
         for sel in ("HOME", "DRAW", "AWAY"):
             o = bo.get(sel)
             fp = fair.get(sel)
-            if not o or not fp:
+            if not o or not fp or not (0.12 <= fp <= 0.88):
                 continue
             edge = o * fp - 1.0
             if min_edge <= edge <= max_edge:

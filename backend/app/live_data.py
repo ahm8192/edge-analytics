@@ -455,22 +455,7 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
             s = ph + pd_ + pa
             m["p_home"], m["p_draw"], m["p_away"] = round(ph / s, 4), round(pd_ / s, 4), round(pa / s, 4)
 
-        b = od.get("best_1x2")
-        if b and mp:
-            # +EV = en iyi oran, Pinnacle'ın adil fiyatını geçiyor mu (oran avı)
-            shop = {k: b[k] * mp[k] - 1.0 for k in ("HOME", "DRAW", "AWAY")
-                    if b.get(k) and mp.get(k)}
-            if shop:
-                sel = max(shop, key=shop.get)
-                e = shop[sel]
-                if 0.005 < e < 0.15:  # gerçekçi bant; üstü veri/eşleşme hatası
-                    m["best_edge_pct"] = round(e, 4)
-                    m["best_edge_sel"] = sel
-                    m["best_odds"] = round(b[sel], 2)
-                    # >%3: gürültü/bayat çizgi payını düşer, gerçekten oynanabilir
-                    m["has_value"] = e > 0.03
-
-        # Tam değer taraması: Pinnacle-adil vs her kitap, her seçim
+        # Değer taraması: Pinnacle-adil vs her kitap, her seçim (güvenilir aralık)
         try:
             from . import theoddsapi as _toa
             vb = _toa.value_from_row(od)
@@ -482,6 +467,11 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
                     # model bu seçimi Pinnacle'ın %80'inden az görüyorsa "model karşı"
                     v["model_agree"] = not (imp and mv is not None and mv < 0.80 * imp)
                 m["value_bets"] = vb[:6]
+                top = vb[0]
+                m["best_edge_pct"] = top["edge_pct"]
+                m["best_edge_sel"] = top["selection"]
+                m["best_odds"] = top["odds"]
+                m["has_value"] = top["edge_pct"] >= 0.025 and top.get("model_agree", True)
         except Exception:
             pass
 
