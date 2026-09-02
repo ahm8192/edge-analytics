@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  6,
-    "versionName":  "0.2.6",
-    "notes":  "Kalibre olasiliklar (lige ozel), Ust/Alt ve KG-var gercek, terfi eden takim olcekleme."
+    "versionCode":  7,
+    "versionName":  "0.2.7",
+    "notes":  "Yakin maclarda Pinnacle referansi + sakatlik + gercek deger tespiti (API-Football)."
 }
