@@ -142,13 +142,14 @@ class MatchDetailViewModel @Inject constructor(
     }
 
     /** Seçilen tarafın oran hareketi — PRO. Ekran açıkken tembel yüklenir. */
-    private val selectedForChart = MutableStateFlow("HOME")
+    private val _selectedForChart = MutableStateFlow("HOME")
+    val selectedForChart: StateFlow<String> = _selectedForChart
 
-    val movement: StateFlow<List<OddsPoint>> = selectedForChart
+    val movement: StateFlow<List<OddsPoint>> = _selectedForChart
         .flatMapLatest { sel -> matches.observeMovement(matchId, "1X2", sel) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun selectForChart(selection: String) { selectedForChart.value = selection }
+    fun selectForChart(selection: String) { _selectedForChart.value = selection }
 
     /** Martingale uyarısı için geçmiş bağlamı. */
     val recentOutcomes: StateFlow<List<String>> = betting.observeRecentOutcomes()

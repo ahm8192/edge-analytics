@@ -13,34 +13,30 @@ import androidx.compose.ui.unit.sp
 import com.ahmet.edge.R
 
 /**
- * "Lambda" — kuantitatif terminal.
- * Ölçüm aleti, kumarhane değil. Neredeyse siyah, katmanlı yüzeyler,
- * gölge yok — saç teli çizgiler. Tek ölçülü vurgu: kehribar.
- * Yeşil/kırmızı YALNIZCA kâr-zarar ve +EV/−EV için; başka yerde kullanılmaz.
- * Bütün sayılar monospace ve tabular — sütunlar alt alta kayarsa okunmaz.
+ * "Lambda" — kuantitatif terminal. Neredeyse siyah, katmanlı yüzeyler, gölge yok,
+ * saç teli çizgiler. Tek ölçülü vurgu: kehribar. Yeşil/kırmızı sadece P&L / +EV.
+ * Bütün sayılar monospace + tabular. Sıkı tipografi — abartısız, yoğun.
  */
 object Ink {
-    val base = Color(0xFF08090B)      // uygulama zemini
-    val surface = Color(0xFF101216)   // kart
-    val raised = Color(0xFF171A1F)    // yükseltilmiş / girdi / basılı
-    val line = Color(0xFF22262D)      // saç teli ayraç
-    val lineStrong = Color(0xFF2E333C)
+    val base = Color(0xFF08090B)
+    val surface = Color(0xFF101216)
+    val raised = Color(0xFF171A1F)
+    val line = Color(0xFF20242B)
+    val lineStrong = Color(0xFF2C313A)
 
     val text = Color(0xFFEAECEF)
-    val muted = Color(0xFF8B929B)
+    val muted = Color(0xFF888F98)
     val faint = Color(0xFF565D66)
 
-    val accent = Color(0xFFF5A623)    // marka / etkileşim / odak / PRO
+    val accent = Color(0xFFF5A623)
     val accentDim = Color(0x1FF5A623)
 
-    // Sadece kâr-zarar ve değer işareti:
-    val signal = Color(0xFF34D399)    // +EV / kazanç
-    val caution = Color(0xFFF5555D)   // −EV / kayıp
-    val brass = Color(0xFFF5A623)     // (geri uyumluluk — accent ile aynı)
+    val signal = Color(0xFF34D399)   // +EV / kazanç
+    val caution = Color(0xFFF5555D)  // −EV / kayıp
+    val brass = Color(0xFFF5A623)    // geri uyumluluk
 
-    // 1X2 olasılık çubuğu — kategorik üçlü (CVD ayrımı: mavi/eğik-gri/kehribar)
     val home = Color(0xFF4C8DFF)
-    val draw = Color(0xFF6B7480)
+    val draw = Color(0xFF636B78)
     val away = Color(0xFFF2A73B)
 }
 
@@ -55,55 +51,49 @@ val PlexMono = FontFamily(
     Font(R.font.plex_mono_semibold, FontWeight.SemiBold),
 )
 
-private val tnum = "tnum"
+private const val tnum = "tnum"
 
 /** Bölüm başlığı: mono, seyrek, büyük harf, kısık. */
 val LabelMono = TextStyle(
     fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-    fontSize = 11.sp, letterSpacing = 1.6.sp
+    fontSize = 10.sp, letterSpacing = 1.1.sp
 )
 
 /** Rakam bloğu — olasılık, oran, tutar. Her zaman tabular. */
 val DataStyle = TextStyle(
     fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-    fontFeatureSettings = tnum, letterSpacing = 0.sp, fontSize = 14.sp
+    fontFeatureSettings = tnum, letterSpacing = 0.sp, fontSize = 13.sp
 )
 
 private val Dark = darkColorScheme(
-    primary = Ink.accent,
-    onPrimary = Ink.base,
+    primary = Ink.accent, onPrimary = Ink.base,
     secondary = Ink.accent,
-    background = Ink.base,
-    onBackground = Ink.text,
-    surface = Ink.surface,
-    onSurface = Ink.text,
-    surfaceVariant = Ink.raised,
-    onSurfaceVariant = Ink.muted,
-    outline = Ink.line,
-    error = Ink.caution,
+    background = Ink.base, onBackground = Ink.text,
+    surface = Ink.surface, onSurface = Ink.text,
+    surfaceVariant = Ink.raised, onSurfaceVariant = Ink.muted,
+    outline = Ink.line, error = Ink.caution,
 )
 
 private val EdgeType = Typography(
-    // Hero sayı (maç detayı olasılığı, kasa bakiyesi)
     displaySmall = TextStyle(fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-        fontSize = 34.sp, letterSpacing = (-0.5).sp, fontFeatureSettings = tnum),
+        fontSize = 26.sp, letterSpacing = (-0.4).sp, fontFeatureSettings = tnum),
     headlineSmall = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 21.sp, letterSpacing = (-0.2).sp),
+        fontSize = 18.sp, letterSpacing = (-0.2).sp),
     titleLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp),
-    titleMedium = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Medium,
         fontSize = 15.sp),
+    titleMedium = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+        fontSize = 13.5.sp),
     bodyLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
-        fontSize = 15.sp, lineHeight = 22.sp),
+        fontSize = 14.sp, lineHeight = 20.sp),
     bodyMedium = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
-        fontSize = 13.5.sp, lineHeight = 20.sp),
+        fontSize = 12.5.sp, lineHeight = 18.sp),
     bodySmall = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Normal,
-        fontSize = 12.sp, lineHeight = 17.sp, color = Ink.muted),
+        fontSize = 11.5.sp, lineHeight = 16.sp, color = Ink.muted),
     labelLarge = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp, letterSpacing = 0.2.sp),
+        fontSize = 13.sp, letterSpacing = 0.2.sp),
     labelMedium = LabelMono,
     labelSmall = TextStyle(fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-        fontSize = 11.sp, fontFeatureSettings = tnum),
+        fontSize = 10.sp, fontFeatureSettings = tnum),
 )
 
 @Composable

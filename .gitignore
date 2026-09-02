@@ -25,3 +25,4 @@ Thumbs.db
 # Python build artefaktlari
 backend/build/
 *.egg-info/
+_*.png

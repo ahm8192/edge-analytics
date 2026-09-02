@@ -40,14 +40,14 @@ fun fmt(v: Double): String = String.format(Locale.US, "%.2f", v)
 fun signedPct(v: Double): String = String.format(Locale.US, "%+.1f%%", v * 100)
 
 // ------------------------------------------------------------------ yüzey
-val CardShape = RoundedCornerShape(7.dp)
+val CardShape = RoundedCornerShape(6.dp)
 val ChipShape = RoundedCornerShape(4.dp)
 
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    padding: PaddingValues = PaddingValues(14.dp),
+    padding: PaddingValues = PaddingValues(13.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val base = modifier
@@ -68,10 +68,10 @@ fun SectionLabel(
     trailing: @Composable (RowScope.() -> Unit)? = null,
 ) {
     Row(
-        modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+        modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text.uppercase(Locale.US), style = LabelMono, color = Ink.faint)
+        Text(text.uppercase(Locale.ROOT), style = LabelMono, color = Ink.faint)
         Spacer(Modifier.weight(1f))
         trailing?.invoke(this)
     }
@@ -226,6 +226,19 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     }
 }
 
+/** Küçük satır-içi aksiyon: hairline çerçeveli mono etiket. */
+@Composable
+fun ActionChip(text: String, tint: Color = Ink.muted, onClick: () -> Unit) {
+    Box(
+        Modifier.clip(ChipShape)
+            .border(1.dp, Ink.lineStrong, ChipShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(text, style = MaterialTheme.typography.labelMedium, color = tint)
+    }
+}
+
 // ------------------------------------------------------------------ durumlar
 @Composable
 fun Skeleton(modifier: Modifier = Modifier, shape: RoundedCornerShape = CardShape) {
@@ -282,44 +295,47 @@ fun StatCell(label: String, value: String, tint: Color = Ink.text, modifier: Mod
     }
 }
 
-/** Skor dağılımı ısı haritası — m[i][j] = P(ev i, dep j). 0..5 gol. */
+/** Skor dağılımı ısı haritası — m[i][j] = P(ev i, dep j). 0..5 gol, kompakt. */
 @Composable
 fun ScoreGrid(matrix: Array<DoubleArray>, modifier: Modifier = Modifier) {
     val n = 6
+    val cell = 40.dp
     val mx = (0 until n).maxOf { i -> (0 until n).maxOf { j -> matrix.getOrNull(i)?.getOrNull(j) ?: 0.0 } }
         .coerceAtLeast(1e-4)
-    Column(modifier.fillMaxWidth()) {
+    Column(modifier) {
         Row {
-            Box(Modifier.size(20.dp))
+            Box(Modifier.size(16.dp))
             repeat(n) { j ->
-                Text("$j", style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
-                    textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                Box(Modifier.size(cell, 14.dp), contentAlignment = Alignment.Center) {
+                    Text("$j", style = LabelMono.copy(fontSize = 9.sp), color = Ink.faint)
+                }
             }
         }
         Spacer(Modifier.height(3.dp))
         for (i in 0 until n) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("$i", style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
-                    textAlign = TextAlign.Center, modifier = Modifier.size(20.dp))
+                Box(Modifier.size(16.dp), contentAlignment = Alignment.Center) {
+                    Text("$i", style = LabelMono.copy(fontSize = 9.sp), color = Ink.faint)
+                }
                 for (j in 0 until n) {
                     val p = matrix.getOrNull(i)?.getOrNull(j) ?: 0.0
                     val t = (p / mx).toFloat().coerceIn(0f, 1f)
                     Box(
-                        Modifier.weight(1f).aspectRatio(1f).padding(1.5.dp)
+                        Modifier.size(cell).padding(1.5.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(Ink.accent.copy(alpha = 0.06f + 0.72f * t)),
+                            .background(Ink.accent.copy(alpha = 0.05f + 0.75f * t)),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (t > 0.28f) Text(
-                            pct0(p), style = LabelMono.copy(fontSize = 9.sp),
-                            color = if (t > 0.6f) Ink.base else Ink.text
+                        if (p >= 0.05) Text(
+                            "${(p * 100).toInt()}", style = LabelMono.copy(fontSize = 9.sp),
+                            color = if (t > 0.55f) Ink.base else Ink.muted
                         )
                     }
                 }
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Text("Satır = ev golü, sütun = deplasman golü", style = LabelMono.copy(fontSize = 9.sp),
+        Spacer(Modifier.height(7.dp))
+        Text("satır = ev · sütun = deplasman · % ihtimal", style = LabelMono.copy(fontSize = 9.sp),
             color = Ink.faint)
     }
 }

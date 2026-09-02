@@ -50,12 +50,12 @@ fun ProbabilityRow(
         Column(Modifier.weight(1f)) {
             SingleBar(modelProb, marketProb)
             Spacer(Modifier.height(5.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("MODEL ${pct(modelProb)}", style = LabelMono.copy(fontSize = 10.sp),
-                    color = Ink.muted)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("MODEL ${pct0(modelProb)}", style = LabelMono.copy(fontSize = 10.sp),
+                    color = Ink.muted, maxLines = 1, softWrap = false)
                 marketProb?.let {
-                    Text("PİYASA ${pct(it)}", style = LabelMono.copy(fontSize = 10.sp),
-                        color = Ink.faint)
+                    Text("PİYASA ${pct0(it)}", style = LabelMono.copy(fontSize = 10.sp),
+                        color = Ink.faint, maxLines = 1, softWrap = false)
                 }
             }
         }

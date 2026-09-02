@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,7 +67,7 @@ fun MatchDetailScreen(
             homeCrest = m?.home?.crestUrl,
             awayCrest = m?.away?.crestUrl,
             meta = m?.let {
-                "${it.league.name.uppercase(java.util.Locale("tr"))} · " +
+                "${it.league.name.uppercase(java.util.Locale.ROOT)} · " +
                     dateFmt.format(it.kickoff.atZone(ZoneId.systemDefault()))
             } ?: ""
         )
@@ -74,9 +75,9 @@ fun MatchDetailScreen(
         (ui.error as? AppError.QuotaExceeded)?.let { QuotaWall(it, onUpgrade, Modifier) }
 
         LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 40.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            Modifier.fillMaxSize().navigationBarsPadding(),
+            contentPadding = PaddingValues(16.dp, 14.dp, 16.dp, 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ---- Model projeksiyonu ------------------------------------
             m?.let { mm ->
@@ -157,34 +158,30 @@ fun MatchDetailScreen(
                                 "oranının ima ettiği olasılık karşılaştırılsın.",
                                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
                         } else {
-                            ui.edges.sortedByDescending { it.edgePct }.forEach { e ->
+                            ui.edges.sortedByDescending { it.edgePct }.forEachIndexed { idx, e ->
                                 val pos = e.edgePct > 0
-                                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically) {
-                                    Text(labelOf(e.selection), Modifier.width(28.dp),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Ink.text)
-                                    StatCell("KENAR", signedPct(e.edgePct),
-                                        if (pos) Ink.signal else Ink.caution, Modifier.weight(1f))
-                                    StatCell("ORAN", fmt(e.takenPrice), Ink.text, Modifier.weight(1f))
-                                    StatCell("GÜVEN", when (e.confidence) {
-                                        Confidence.HIGH -> "YÜKSEK"; Confidence.MEDIUM -> "ORTA"
-                                        Confidence.LOW -> "DÜŞÜK"
-                                    }, Ink.muted, Modifier.weight(1f))
-                                    Text("+ KUPON", style = com.ahmet.edge.ui.theme.LabelMono,
-                                        color = Ink.muted,
-                                        modifier = Modifier.clip(RoundedCornerShape(4.dp))
-                                            .clickable {
-                                                vm.addToCoupon(e.selection, labelOf(e.selection),
-                                                    e.modelProb, e.takenPrice)
-                                            }
-                                            .padding(horizontal = 8.dp, vertical = 6.dp))
-                                    if (e.isValue) {
-                                        Text("KAYDET", style = com.ahmet.edge.ui.theme.LabelMono,
-                                            color = Ink.accent,
-                                            modifier = Modifier.clip(RoundedCornerShape(4.dp))
-                                                .clickable { recording = e }
-                                                .padding(horizontal = 8.dp, vertical = 6.dp))
+                                if (idx > 0) Hairline()
+                                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(labelOf(e.selection), Modifier.width(26.dp),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = Ink.text)
+                                        StatCell("KENAR", signedPct(e.edgePct),
+                                            if (pos) Ink.signal else Ink.caution, Modifier.weight(1f))
+                                        StatCell("ORAN", fmt(e.takenPrice), Ink.text, Modifier.weight(1f))
+                                        StatCell("GÜVEN", when (e.confidence) {
+                                            Confidence.HIGH -> "YÜKSEK"; Confidence.MEDIUM -> "ORTA"
+                                            Confidence.LOW -> "DÜŞÜK"
+                                        }, Ink.muted, Modifier.weight(1f))
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(Modifier.padding(start = 26.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        ActionChip("+ KUPON", Ink.muted) {
+                                            vm.addToCoupon(e.selection, labelOf(e.selection),
+                                                e.modelProb, e.takenPrice)
+                                        }
+                                        if (e.isValue) ActionChip("KAYDET", Ink.accent) { recording = e }
                                     }
                                 }
                             }
@@ -232,15 +229,28 @@ fun MatchDetailScreen(
             // ---- PRO: oran hareketi -------------------------------------
             item {
                 if (ent.allows(Feature.ODDS_MOVEMENT)) {
+                    val chartSel by vm.selectedForChart.collectAsState()
                     Section("Oran hareketi") {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(5.dp))
+                                .border(1.dp, Ink.line, RoundedCornerShape(5.dp))
+                        ) {
                             listOf("HOME" to "1", "DRAW" to "X", "AWAY" to "2")
                                 .forEach { (key, label) ->
-                                    TextButton(onClick = { vm.selectForChart(key) }) {
-                                        Text(label, color = Ink.muted)
+                                    val on = chartSel == key
+                                    Box(
+                                        Modifier.weight(1f)
+                                            .background(if (on) Ink.accentDim else Color.Transparent)
+                                            .clickable { vm.selectForChart(key) }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(label, style = MaterialTheme.typography.labelMedium,
+                                            color = if (on) Ink.accent else Ink.muted)
                                     }
                                 }
                         }
+                        Spacer(Modifier.height(10.dp))
                         OddsMovementChart(
                             points = movement,
                             fairPrice = ui.probs1x2["HOME"]?.let { 1.0 / it }

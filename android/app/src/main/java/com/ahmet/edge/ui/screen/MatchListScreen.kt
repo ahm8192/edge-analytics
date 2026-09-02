@@ -161,19 +161,22 @@ fun MatchListScreen(
         ) {
             item {
                 val valCount = filtered.count { it.hasValue }
-                Panel(padding = PaddingValues(14.dp, 12.dp, 14.dp, 12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        StatCell("MAÇ", filtered.size.toString(), Ink.text)
-                        StatCell("DEĞER", valCount.toString(),
-                            if (valCount > 0) Ink.signal else Ink.muted)
-                        StatCell("AÇIK BAHİS", openBets.toString(), Ink.text)
-                        StatCell(
-                            "KASA",
-                            if (bankroll.starting > 0) signedPct(bankroll.roi) else "—",
-                            if (bankroll.starting <= 0) Ink.muted
-                            else if (bankroll.roi >= 0) Ink.signal else Ink.caution
-                        )
-                    }
+                Row(
+                    Modifier.fillMaxWidth().clip(CardShape).background(Ink.surface)
+                        .border(1.dp, Ink.line, CardShape)
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MiniStat("MAÇ", filtered.size.toString(), Ink.text)
+                    MiniStat("+EV", valCount.toString(),
+                        if (valCount > 0) Ink.signal else Ink.faint)
+                    MiniStat("AÇIK", openBets.toString(),
+                        if (openBets > 0) Ink.text else Ink.faint)
+                    MiniStat("KASA",
+                        if (bankroll.starting > 0) signedPct(bankroll.roi) else "—",
+                        if (bankroll.starting <= 0) Ink.faint
+                        else if (bankroll.roi >= 0) Ink.signal else Ink.caution)
                 }
             }
 
@@ -229,7 +232,7 @@ fun LeagueTabs(leagues: List<String>, selected: String?, onSelect: (String?) -> 
     ) {
         item { LeagueChip("TÜMÜ", selected == null) { onSelect(null) } }
         items(leagues) { lg ->
-            LeagueChip(lg.uppercase(TR), selected == lg) { onSelect(lg) }
+            LeagueChip(lg.uppercase(Locale.ROOT), selected == lg) { onSelect(lg) }
         }
     }
 }
@@ -248,27 +251,39 @@ private fun LeagueChip(text: String, active: Boolean, onClick: () -> Unit) {
     }
 }
 
+private val ROOT: Locale = Locale.ROOT
+
+@Composable
+private fun MiniStat(label: String, value: String, tint: androidx.compose.ui.graphics.Color) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(label, style = LabelMono, color = Ink.faint)
+        Spacer(Modifier.width(5.dp))
+        Text(value, style = DataStyle.copy(fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold), color = tint)
+    }
+}
+
 @Composable
 fun ScreenHeader(title: String, right: String? = null, sub: String? = null) {
     Column(
         Modifier.fillMaxWidth()
             .statusBarsPadding()
-            .padding(16.dp, 18.dp, 16.dp, 14.dp)
+            .padding(16.dp, 12.dp, 16.dp, 10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
+                Modifier.size(20.dp).clip(RoundedCornerShape(5.dp))
                     .background(Ink.accent.copy(alpha = 0.14f))
-                    .border(1.dp, Ink.accent.copy(alpha = 0.35f), RoundedCornerShape(6.dp)),
+                    .border(1.dp, Ink.accent.copy(alpha = 0.35f), RoundedCornerShape(5.dp)),
                 contentAlignment = Alignment.Center
-            ) { Text("λ", style = DataStyle.copy(fontSize = 15.sp), color = Ink.accent) }
-            Spacer(Modifier.width(10.dp))
+            ) { Text("λ", style = DataStyle.copy(fontSize = 12.sp), color = Ink.accent) }
+            Spacer(Modifier.width(9.dp))
             Text(title, style = MaterialTheme.typography.headlineSmall, color = Ink.text,
                 modifier = Modifier.weight(1f))
             if (right != null) Text(right, style = LabelMono, color = Ink.faint)
         }
         if (sub != null) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(5.dp))
             Text(sub, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
         }
     }
@@ -301,102 +316,74 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     val pick = when (maxOf(h, d, a)) { h -> 0; d -> 1; else -> 2 }
     val homeName = m.home.shortName.ifBlank { m.home.name }
     val awayName = m.away.shortName.ifBlank { m.away.name }
-
     val isLive = m.status == com.ahmet.edge.domain.model.MatchStatus.LIVE
+    val hasVal = showEdge && m.hasValue && m.bestEdgePct != null
 
-    Panel(onClick = onClick, padding = PaddingValues(16.dp, 13.dp, 16.dp, 14.dp)) {
-        // üst: lig · saat/canlı  ————  güven  ⟩
+    Panel(onClick = onClick, padding = PaddingValues(14.dp, 11.dp, 14.dp, 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(m.league.name.uppercase(TR), style = LabelMono.copy(fontSize = 10.sp),
+            Text(m.league.name.uppercase(ROOT), style = LabelMono,
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false))
+            Spacer(Modifier.width(6.dp))
             if (isLive) {
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.size(6.dp).background(Ink.caution,
+                Box(Modifier.size(5.dp).background(Ink.caution,
                     androidx.compose.foundation.shape.CircleShape))
                 Spacer(Modifier.width(5.dp))
-                Text("CANLI ${m.minute ?: 0}'", style = LabelMono.copy(fontSize = 10.sp),
+                Text("${m.minute ?: 0}'", style = DataStyle.copy(fontSize = 11.sp),
                     color = Ink.caution)
             } else {
-                Text("  ·  $kickoff", style = DataStyle.copy(fontSize = 11.sp),
-                    color = Ink.muted, maxLines = 1)
+                Text(kickoff, style = DataStyle.copy(fontSize = 11.sp), color = Ink.muted)
             }
             Spacer(Modifier.weight(1f))
             ConfidenceMeter(m.modelConfidence)
-            Spacer(Modifier.width(9.dp))
-            Text("⟩", color = Ink.faint, style = MaterialTheme.typography.titleMedium)
         }
 
-        Spacer(Modifier.height(13.dp))
-
-        // eşleşme (canlıda skor, öncesinde adil oran)
-        MatchupSide(m.home.crestUrl, homeName,
-            if (isLive) null else 1.0 / h.coerceAtLeast(0.01), pick == 0,
-            score = if (isLive) m.homeGoals else null)
-        Spacer(Modifier.height(9.dp))
-        MatchupSide(m.away.crestUrl, awayName,
-            if (isLive) null else 1.0 / a.coerceAtLeast(0.01), pick == 2,
-            score = if (isLive) m.awayGoals else null)
-
-        Spacer(Modifier.height(14.dp))
-        Hairline()
-        Spacer(Modifier.height(12.dp))
-
-        // 1 / X / 2 kolonları — modelin seçimi vurgulu
-        Row(Modifier.fillMaxWidth()) {
-            ProbColumn("1", h, pick == 0, Modifier.weight(1f))
-            ProbColumn("X", d, pick == 1, Modifier.weight(1f))
-            ProbColumn("2", a, pick == 2, Modifier.weight(1f))
-        }
         Spacer(Modifier.height(10.dp))
-        ProbBar3(h, d, a, height = 5.dp)
+        TeamRow(m.home.crestUrl, homeName, pick == 0, if (isLive) m.homeGoals else null)
+        Spacer(Modifier.height(6.dp))
+        TeamRow(m.away.crestUrl, awayName, pick == 2, if (isLive) m.awayGoals else null)
 
-        if (showEdge && m.hasValue && m.bestEdgePct != null) {
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("DEĞER", style = LabelMono, color = Ink.signal)
-                Spacer(Modifier.weight(1f))
-                EdgeTag(m.bestEdgePct)
-            }
+        Spacer(Modifier.height(11.dp))
+        ProbBar3(h, d, a, height = 6.dp)
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ProbInline("1", h, pick == 0)
+            Spacer(Modifier.width(18.dp))
+            ProbInline("X", d, pick == 1)
+            Spacer(Modifier.width(18.dp))
+            ProbInline("2", a, pick == 2)
+            Spacer(Modifier.weight(1f))
+            if (hasVal) EdgeTag(m.bestEdgePct!!)
         }
     }
 }
 
 @Composable
-private fun MatchupSide(
-    crest: String?, name: String, fairOdds: Double?, isPick: Boolean, score: Int? = null,
-) {
+private fun TeamRow(crest: String?, name: String, isPick: Boolean, score: Int?) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        TeamCrest(crest, name, 30.dp)
-        Spacer(Modifier.width(12.dp))
+        TeamCrest(crest, name, 22.dp)
+        Spacer(Modifier.width(9.dp))
         Text(
-            name,
-            style = MaterialTheme.typography.titleMedium,
+            name, style = MaterialTheme.typography.titleMedium,
             color = if (isPick) Ink.text else Ink.muted,
             fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
         )
-        when {
-            score != null -> Text("$score",
-                style = DataStyle.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-                color = Ink.text)
-            fairOdds != null -> Text(fmt(fairOdds), style = DataStyle.copy(fontSize = 14.sp),
-                color = if (isPick) Ink.text else Ink.faint)
-        }
+        if (score != null) Text(
+            "$score", style = DataStyle.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = Ink.text
+        )
     }
 }
 
 @Composable
-private fun ProbColumn(k: String, v: Double, isPick: Boolean, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ProbInline(k: String, v: Double, isPick: Boolean) {
+    Row(verticalAlignment = Alignment.Bottom) {
         Text(k, style = LabelMono, color = if (isPick) Ink.accent else Ink.faint)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            pct0(v),
-            style = DataStyle.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-            color = if (isPick) Ink.text else Ink.muted
-        )
+        Spacer(Modifier.width(4.dp))
+        Text(pct0(v), style = DataStyle.copy(fontSize = 13.sp,
+            fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Medium),
+            color = if (isPick) Ink.text else Ink.muted)
     }
 }
 

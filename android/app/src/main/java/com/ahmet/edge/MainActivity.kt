@@ -3,6 +3,7 @@ package com.ahmet.edge
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
@@ -28,7 +29,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Uygulama her zaman koyu -> sistem çubuğu ikonları daima açık renk kalsın
+        // (sistem teması açıkken bile). auto(...) tema takip ettiği için sabitliyoruz.
+        val barStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
 
         billing = BillingManager(
             context = applicationContext,
