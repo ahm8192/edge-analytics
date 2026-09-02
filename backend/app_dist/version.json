@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  8,
-    "versionName":  "0.2.8",
-    "notes":  "Kasa kurulumu, biten bahisler otomatik kapaniyor, kupon analizi, skor dagilimi haritasi."
+    "versionCode":  9,
+    "versionName":  "0.2.9",
+    "notes":  "Canli mac analizi: oynanan maclar skor + dakika + mac-ici olasilikla listenin ustunde."
 }
