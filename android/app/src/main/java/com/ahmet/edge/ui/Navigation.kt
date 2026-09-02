@@ -36,6 +36,7 @@ sealed class Dest(val route: String, val label: String, val icon: ImageVector) {
     data object Log : Dest("log", "GÜNLÜK", Icons.Rounded.ReceiptLong)
     data object Detail : Dest("match/{id}", "", Icons.Rounded.Bolt)
     data object Paywall : Dest("paywall", "", Icons.Rounded.Bolt)
+    data object Coupon : Dest("coupon", "", Icons.Rounded.Bolt)
 
     companion object { val tabs = listOf(Matches, Value, Bankroll, Log) }
 }
@@ -64,12 +65,18 @@ fun EdgeNavGraph(
             composable(Dest.Matches.route) {
                 MatchListScreen(
                     onOpen = { nav.navigate("match/$it") },
-                    onUpgrade = { nav.navigate(Dest.Paywall.route) })
+                    onUpgrade = { nav.navigate(Dest.Paywall.route) },
+                    onCoupon = { nav.navigate(Dest.Coupon.route) })
             }
             composable(Dest.Value.route) {
                 ValueBoardScreen(
                     onOpen = { nav.navigate("match/$it") },
                     onUpgrade = { nav.navigate(Dest.Paywall.route) })
+            }
+            composable(Dest.Coupon.route) {
+                CouponScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenMatch = { nav.navigate("match/$it") })
             }
             composable(Dest.Bankroll.route) {
                 BankrollScreen(onUpgrade = { nav.navigate(Dest.Paywall.route) })

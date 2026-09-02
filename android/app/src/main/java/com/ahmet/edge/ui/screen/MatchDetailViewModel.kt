@@ -39,10 +39,22 @@ class MatchDetailViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val matches: MatchRepository,
     private val betting: BettingRepository,
+    private val coupon: com.ahmet.edge.domain.CouponStore,
     entitlements: EntitlementRepository
 ) : ViewModel() {
 
     private val matchId: Long = savedState.get<String>("id")?.toLongOrNull() ?: 0L
+
+    fun addToCoupon(sel: String, selLabel: String, modelProb: Double, price: Double) {
+        val mm = ui.value.match ?: return
+        coupon.add(com.ahmet.edge.domain.CouponPick(
+            matchId = matchId,
+            label = "${mm.home.shortName.ifBlank { mm.home.name }}–" +
+                mm.away.shortName.ifBlank { mm.away.name },
+            market = "1X2", selection = sel, selectionLabel = selLabel,
+            modelProb = modelProb, price = price
+        ))
+    }
     private val error = MutableStateFlow<AppError?>(null)
     private val loading = MutableStateFlow(true)
 

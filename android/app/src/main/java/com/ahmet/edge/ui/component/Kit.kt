@@ -281,3 +281,45 @@ fun StatCell(label: String, value: String, tint: Color = Ink.text, modifier: Mod
         Text(value, style = DataStyle.copy(fontSize = 15.sp), color = tint)
     }
 }
+
+/** Skor dağılımı ısı haritası — m[i][j] = P(ev i, dep j). 0..5 gol. */
+@Composable
+fun ScoreGrid(matrix: Array<DoubleArray>, modifier: Modifier = Modifier) {
+    val n = 6
+    val mx = (0 until n).maxOf { i -> (0 until n).maxOf { j -> matrix.getOrNull(i)?.getOrNull(j) ?: 0.0 } }
+        .coerceAtLeast(1e-4)
+    Column(modifier.fillMaxWidth()) {
+        Row {
+            Box(Modifier.size(20.dp))
+            repeat(n) { j ->
+                Text("$j", style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
+                    textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.height(3.dp))
+        for (i in 0 until n) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("$i", style = LabelMono.copy(fontSize = 10.sp), color = Ink.faint,
+                    textAlign = TextAlign.Center, modifier = Modifier.size(20.dp))
+                for (j in 0 until n) {
+                    val p = matrix.getOrNull(i)?.getOrNull(j) ?: 0.0
+                    val t = (p / mx).toFloat().coerceIn(0f, 1f)
+                    Box(
+                        Modifier.weight(1f).aspectRatio(1f).padding(1.5.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Ink.accent.copy(alpha = 0.06f + 0.72f * t)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (t > 0.28f) Text(
+                            pct0(p), style = LabelMono.copy(fontSize = 9.sp),
+                            color = if (t > 0.6f) Ink.base else Ink.text
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("Satır = ev golü, sütun = deplasman golü", style = LabelMono.copy(fontSize = 9.sp),
+            color = Ink.faint)
+    }
+}

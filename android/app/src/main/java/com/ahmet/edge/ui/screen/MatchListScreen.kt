@@ -42,7 +42,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MatchListViewModel @Inject constructor(
-    private val repo: MatchRepository
+    private val repo: MatchRepository,
+    private val betting: com.ahmet.edge.data.repo.BettingRepository,
+    val coupon: com.ahmet.edge.domain.CouponStore,
 ) : ViewModel() {
     private val from = Instant.now()
     private val to = Instant.now().plusSeconds(7 * 86400)
@@ -52,6 +54,12 @@ class MatchListViewModel @Inject constructor(
 
     val refreshing = MutableStateFlow(false)
 
+    val bankroll = betting.observeBankroll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
+            com.ahmet.edge.domain.model.Bankroll(0.0, 0.0, 0.0, 0.0))
+    val openBets = betting.observeOpenCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
@@ -59,6 +67,7 @@ class MatchListViewModel @Inject constructor(
         try {
             repo.refreshWindow(from, to)
             repo.prune()
+            runCatching { betting.autoSettle() }   // biten bahisleri kapat
         } finally {
             refreshing.value = false
         }
@@ -83,10 +92,14 @@ private fun oneXtwo(m: Match): Triple<Double, Double, Double> {
 fun MatchListScreen(
     onOpen: (Long) -> Unit,
     onUpgrade: () -> Unit,
+    onCoupon: () -> Unit = {},
     vm: MatchListViewModel = hiltViewModel()
 ) {
     val matches by vm.matches.collectAsState()
     val refreshing by vm.refreshing.collectAsState()
+    val bankroll by vm.bankroll.collectAsState()
+    val openBets by vm.openBets.collectAsState()
+    val couponPicks by vm.coupon.picks.collectAsState()
     val ent = LocalEntitlement.current
     val quota = ent.quotas["match_analysis"] ?: 0
     val showEdge = ent.allows(Feature.EDGE_DETECTION)
@@ -113,12 +126,46 @@ fun MatchListScreen(
             LeagueTabs(leagues, league) { league = it }
             Hairline()
         }
+        if (couponPicks.isNotEmpty()) {
+            val a = remember(couponPicks) { vm.coupon.analyze(couponPicks) }
+            Row(
+                Modifier.fillMaxWidth().background(Ink.accentDim)
+                    .clickable(onClick = onCoupon)
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("KUPON · ${couponPicks.size} SEÇİM", style = LabelMono, color = Ink.accent,
+                    modifier = Modifier.weight(1f))
+                Text("ORAN ${fmt(a.combinedOdds)}  ·  ${signedPct(a.edgePct)}  →",
+                    style = LabelMono,
+                    color = if (a.edgePct > 0 && !a.sameMatch) Ink.signal else Ink.muted)
+            }
+            Hairline()
+        }
 
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 24.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
+            item {
+                val valCount = filtered.count { it.hasValue }
+                Panel(padding = PaddingValues(14.dp, 12.dp, 14.dp, 12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        StatCell("MAÇ", filtered.size.toString(), Ink.text)
+                        StatCell("DEĞER", valCount.toString(),
+                            if (valCount > 0) Ink.signal else Ink.muted)
+                        StatCell("AÇIK BAHİS", openBets.toString(), Ink.text)
+                        StatCell(
+                            "KASA",
+                            if (bankroll.starting > 0) signedPct(bankroll.roi) else "—",
+                            if (bankroll.starting <= 0) Ink.muted
+                            else if (bankroll.roi >= 0) Ink.signal else Ink.caution
+                        )
+                    }
+                }
+            }
+
             if (!ent.isSubscriber) item { QuotaStrip(quota, onUpgrade) }
 
             if (ent.inGracePeriod) item {

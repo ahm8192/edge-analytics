@@ -15,13 +15,39 @@ import kotlin.math.sqrt
 class BettingRepository @Inject constructor(
     private val betDao: BetDao,
     private val bankrollDao: BankrollDao,
-    private val oddsDao: OddsDao
+    private val oddsDao: OddsDao,
+    private val matchDao: MatchDao
 ) {
+
+    /** Biten maçlardan açık bahisleri otomatik sonuçlandırır (skor bizde var). */
+    suspend fun autoSettle() {
+        val open = betDao.observeOpen().first()
+        for (b in open) {
+            val mwt = matchDao.observeOne(b.matchId).first() ?: continue
+            val m = mwt.match
+            if (m.status != "FINISHED") continue
+            val hg = m.homeGoals ?: continue
+            val ag = m.awayGoals ?: continue
+            val tot = hg + ag
+            val won: Boolean? = when (b.selection) {
+                "HOME" -> hg > ag
+                "DRAW" -> hg == ag
+                "AWAY" -> hg < ag
+                "OVER" -> tot > 2
+                "UNDER" -> tot < 3
+                "YES" -> hg >= 1 && ag >= 1
+                "NO" -> !(hg >= 1 && ag >= 1)
+                else -> null
+            }
+            if (won != null) settle(b.id, if (won) BetOutcome.WIN else BetOutcome.LOSE)
+        }
+    }
     fun observeBets(): Flow<List<Bet>> = betDao.observeAll().map { it.map(BetEntity::toDomain) }
 
     fun observeBankroll(): Flow<Bankroll> =
         combine(bankrollDao.observe(), betDao.observeOpenExposure()) { state, exposure ->
-            val s = state ?: BankrollEntity(1, 1000.0, 1000.0, 1000.0, Instant.now().epochSecond)
+            // Kullanıcı kasa kurmadıysa 0 — Kasa ekranı kurulum kartı gösterir.
+            val s = state ?: BankrollEntity(1, 0.0, 0.0, 0.0, Instant.now().epochSecond)
             Bankroll(s.current, s.starting, exposure, s.peak)
         }
 
@@ -43,6 +69,8 @@ class BettingRepository @Inject constructor(
     )
 
     fun observeRecentOutcomes(): Flow<List<String>> = betDao.observeRecentOutcomes()
+
+    fun observeOpenCount(): Flow<Int> = betDao.observeOpen().map { it.size }
 
     fun observeAverageStake(): Flow<Double> =
         betDao.observeAverageStake().map { it ?: 0.0 }

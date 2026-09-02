@@ -97,6 +97,22 @@ fun MatchDetailScreen(
                 }
             }
 
+            // ---- Skor dağılımı ---------------------------------------
+            m?.let { mm ->
+                item {
+                    val mat = remember(mm.id, mm.lambdaHome, mm.lambdaAway) {
+                        com.ahmet.edge.domain.engine.PoissonMath.scoreMatrix(
+                            mm.lambdaHome ?: 1.35, mm.lambdaAway ?: 1.10, mm.rho)
+                    }
+                    Column(Modifier.fillMaxWidth()) {
+                        SectionLabel("Skor dağılımı")
+                        Panel(padding = PaddingValues(14.dp)) {
+                            com.ahmet.edge.ui.component.ScoreGrid(mat)
+                        }
+                    }
+                }
+            }
+
             // ---- Oranını gir -> canlı edge/Kelly ----------------------
             item {
                 OddsEntryCard(
@@ -155,6 +171,14 @@ fun MatchDetailScreen(
                                         Confidence.HIGH -> "YÜKSEK"; Confidence.MEDIUM -> "ORTA"
                                         Confidence.LOW -> "DÜŞÜK"
                                     }, Ink.muted, Modifier.weight(1f))
+                                    Text("+ KUPON", style = com.ahmet.edge.ui.theme.LabelMono,
+                                        color = Ink.muted,
+                                        modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                                            .clickable {
+                                                vm.addToCoupon(e.selection, labelOf(e.selection),
+                                                    e.modelProb, e.takenPrice)
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 6.dp))
                                     if (e.isValue) {
                                         Text("KAYDET", style = com.ahmet.edge.ui.theme.LabelMono,
                                             color = Ink.accent,

@@ -1,13 +1,20 @@
 package com.ahmet.edge.ui.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,11 +25,13 @@ import com.ahmet.edge.domain.model.Bet
 import com.ahmet.edge.domain.model.BetOutcome
 import com.ahmet.edge.ui.component.*
 import com.ahmet.edge.ui.theme.Ink
+import com.ahmet.edge.ui.theme.LabelMono
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,35 +50,35 @@ fun BetLogScreen(onUpgrade: () -> Unit, vm: BetLogViewModel = hiltViewModel()) {
     val ent = LocalEntitlement.current
     val bets by vm.bets.collectAsState()
 
-    if (!ent.allows(Feature.BET_LOG)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().padding(16.dp, 12.dp, 16.dp, 16.dp)) {
-            Text("Günlük", style = MaterialTheme.typography.headlineSmall, color = Ink.text)
-            Spacer(Modifier.height(16.dp))
-            LockedCard(Feature.BET_LOG, onUpgrade)
-            Spacer(Modifier.height(12.dp))
-            Text("Oynadıklarını kaydetmezsen modelin işe yarayıp yaramadığını " +
-                 "asla bilemezsin. Hafıza seçicidir, günlük değildir.",
-                style = MaterialTheme.typography.bodySmall, color = Ink.faint)
-        }
-        return
-    }
+    Column(Modifier.fillMaxSize().background(Ink.base)) {
+        ScreenHeader(
+            "Günlük",
+            right = if (bets.isNotEmpty()) "${bets.count { it.outcome == BetOutcome.OPEN }} AÇIK" else null,
+            sub = "Oynamadıkların da kayıtlı — model denetimi onlarsız eksik kalır."
+        )
 
-    LazyColumn(Modifier.fillMaxSize().statusBarsPadding(),
-        contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 40.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Column {
-                Text("Günlük", style = MaterialTheme.typography.headlineSmall, color = Ink.text)
-                Text("Oynamadıkların da kayıtlı — denetim onlarsız eksik kalır.",
-                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+        if (!ent.allows(Feature.BET_LOG)) {
+            LockedFeaturePane(
+                "Bahis günlüğü · PRO",
+                "Her tahmin (oynasan da oynamasan da) kaydedilir; biten maçlar otomatik " +
+                    "sonuçlanır. Model gerçekten işe yarıyor mu, ancak bu kayıtla görürsün.",
+                onUpgrade
+            )
+            return
+        }
+
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 40.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            items(bets, key = { it.id }) { bet ->
+                BetRow(bet) { outcome -> vm.settle(bet.id, outcome) }
             }
-        }
-        items(bets, key = { it.id }) { bet ->
-            BetRow(bet, onSettle = { outcome -> vm.settle(bet.id, outcome) })
-        }
-        if (bets.isEmpty()) item {
-            Text("Henüz kayıt yok.", color = Ink.faint,
-                modifier = Modifier.padding(vertical = 40.dp))
+            if (bets.isEmpty()) item {
+                EmptyState("Henüz kayıt yok",
+                    "Bir maça girip kenar payı olan seçimi 'Kaydet' ile buraya ekle.")
+            }
         }
     }
 }
@@ -77,60 +86,51 @@ fun BetLogScreen(onUpgrade: () -> Unit, vm: BetLogViewModel = hiltViewModel()) {
 @Composable
 private fun BetRow(b: Bet, onSettle: (BetOutcome) -> Unit) {
     var settling by remember { mutableStateOf(false) }
-
     if (settling) SettleBetDialog(
         matchLabel = b.matchLabel, selection = b.selection,
         stake = b.stake, price = b.takenPrice,
         onDismiss = { settling = false },
-        onSettle = { outcome ->
-            onSettle(BetOutcome.valueOf(outcome)); settling = false
-        }
+        onSettle = { outcome -> onSettle(BetOutcome.valueOf(outcome)); settling = false }
     )
 
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), color = Ink.surface) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text(b.matchLabel, color = Ink.text,
-                        style = MaterialTheme.typography.titleMedium)
-                    Text("${b.market} · ${b.selection} @ ${fmt(b.takenPrice)}",
-                        color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+    val oc = b.outcome
+    Panel(padding = PaddingValues(14.dp, 12.dp, 14.dp, 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(b.matchLabel, style = MaterialTheme.typography.titleMedium, color = Ink.text,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (oc == BetOutcome.OPEN) {
+                Text("SONUÇLANDIR", style = LabelMono, color = Ink.accent,
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                        .clickable { settling = true }
+                        .padding(horizontal = 8.dp, vertical = 6.dp))
+            } else {
+                val (txt, c) = when (oc) {
+                    BetOutcome.WIN -> "KAZANDI" to Ink.signal
+                    BetOutcome.LOSE -> "KAYBETTİ" to Ink.caution
+                    BetOutcome.PUSH -> "İADE" to Ink.muted
+                    BetOutcome.VOID -> "İPTAL" to Ink.muted
+                    BetOutcome.OPEN -> "" to Ink.faint
                 }
-                if (b.outcome == BetOutcome.OPEN) {
-                    TextButton(onClick = { settling = true }) {
-                        Text("Sonuçlandır", color = Ink.signal,
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                } else Text(
-                    when (b.outcome) {
-                        BetOutcome.OPEN -> "açık"
-                        BetOutcome.WIN -> "kazandı"
-                        BetOutcome.LOSE -> "kaybetti"
-                        BetOutcome.PUSH -> "iade"
-                        BetOutcome.VOID -> "iptal"
-                    },
-                    color = when (b.outcome) {
-                        BetOutcome.WIN -> Ink.signal
-                        BetOutcome.LOSE -> Ink.caution
-                        else -> Ink.faint
-                    },
-                    style = MaterialTheme.typography.labelMedium
-                )
+                Tag(txt, c)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                StatChip("tutar", if (b.wasPlaced) fmt(b.stake) else "kağıt")
-                StatChip("model", pct(b.modelProb))
-                b.clvPct?.let {
-                    StatChip("CLV", signedPct(it), if (it >= 0) Ink.signal else Ink.caution)
-                }
-                b.pnl?.let {
-                    StatChip("sonuç", fmt(it), if (it >= 0) Ink.signal else Ink.caution)
-                }
-            }
-            Text(logFmt.format(b.placedAt.atZone(ZoneId.systemDefault())),
-                color = Ink.faint, style = MaterialTheme.typography.bodySmall)
         }
+        Spacer(Modifier.height(4.dp))
+        Text("${b.market} · ${b.selection} @ ${fmt(b.takenPrice)}",
+            style = LabelMono.copy(fontSize = 10.sp), color = Ink.muted)
+        Spacer(Modifier.height(11.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            StatCell("TUTAR", if (b.wasPlaced) fmt(b.stake) else "KÂĞIT", Ink.text)
+            StatCell("MODEL", pct(b.modelProb), Ink.text)
+            StatCell("CLV", b.clvPct?.let { signedPct(it) } ?: "—",
+                if ((b.clvPct ?: 0.0) >= 0) Ink.signal else Ink.caution)
+            StatCell("SONUÇ", b.pnl?.let { fmt(it) } ?: "—",
+                if ((b.pnl ?: 0.0) >= 0) Ink.signal else Ink.caution)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(logFmt.format(b.placedAt.atZone(ZoneId.systemDefault())),
+            style = LabelMono.copy(fontSize = 9.sp), color = Ink.faint)
     }
 }
 
-private val logFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm")
+private val logFmt: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMM · HH:mm", Locale("tr"))
