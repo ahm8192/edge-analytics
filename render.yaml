@@ -9,12 +9,13 @@ services:
     envVars:
       - key: FOOTBALL_DATA_TOKEN
         sync: false
-      # API-Football (api-sports.io) ücretsiz anahtar — sakatlık verisi
+      # API-Football (api-sports.io) ücretsiz anahtar — sakatlık + canlı maç
+      # NOT: bunlar ücretsiz anahtarlar; yayında panelden gizli env'e taşınmalı.
       - key: API_FOOTBALL_KEY
-        sync: false
+        value: "63e1cd1dc0acf458d373fbc9ce0f297c"
       # The Odds API (the-odds-api.com) ücretsiz anahtar — Pinnacle + 20+ bahisçi
       - key: ODDS_API_KEY
-        sync: false
+        value: "7c56b63159a581389e0ca9518f9c279a"
       # Ucretsiz plan dakikada ~10 istek; onbellek + throttle ile 9 lig guvenli.
       - key: FOOTBALL_DATA_COMPETITIONS
         value: PL,ELC,BL1,SA,PD,FL1,DED,PPL,BSA

@@ -32,7 +32,8 @@ _remaining = [10_000]   # son görülen x-requests-remaining
 
 
 def _key() -> str:
-    return os.environ.get("ODDS_API_KEY", "").strip()
+    # Render env yoksa gömülü ücretsiz anahtara düş (yayında panelden ver).
+    return os.environ.get("ODDS_API_KEY", "").strip() or "7c56b63159a581389e0ca9518f9c279a"
 
 
 def enabled() -> bool:

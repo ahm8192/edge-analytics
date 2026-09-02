@@ -32,7 +32,8 @@ _MAX_DAY = int(os.environ.get("APIFOOTBALL_MAX_DAY", "80"))
 
 
 def _key() -> str:
-    return os.environ.get("API_FOOTBALL_KEY", "").strip()
+    # Render env yoksa gömülü ücretsiz anahtara düş (yayında panelden ver).
+    return os.environ.get("API_FOOTBALL_KEY", "").strip() or "63e1cd1dc0acf458d373fbc9ce0f297c"
 
 
 def enabled() -> bool:
