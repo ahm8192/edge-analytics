@@ -14,10 +14,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +34,7 @@ import com.ahmet.edge.ui.component.*
 import com.ahmet.edge.ui.theme.DataStyle
 import com.ahmet.edge.ui.theme.Ink
 import com.ahmet.edge.ui.theme.LabelMono
+import com.ahmet.edge.ui.theme.PlexMono
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -128,26 +132,28 @@ fun MatchListScreen(
     }
 
     Column(Modifier.fillMaxSize().background(Ink.base)) {
-        ScreenHeader(
-            title = "Önümüzdeki 7 gün",
-            right = if (matches.isNotEmpty()) "${filtered.size} MAÇ"
-            else if (refreshing) "YÜKLENİYOR" else null
+        val valCount = filtered.count { it.hasValue }
+        TerminalHeader(
+            matchCount = filtered.size,
+            valueCount = valCount,
+            roi = if (bankroll.starting > 0) signedPct(bankroll.roi) else null,
+            roiUp = bankroll.roi >= 0,
+            openBets = openBets,
+            loading = refreshing
         )
-        if (leagues.size > 1) {
-            LeagueTabs(leagues, league) { league = it }
-            Hairline()
-        }
+        if (leagues.size > 1) LeagueTabs(leagues, league) { league = it }
+        Hairline()
         if (couponPicks.isNotEmpty()) {
             val a = remember(couponPicks) { vm.coupon.analyze(couponPicks) }
             Row(
                 Modifier.fillMaxWidth().background(Ink.accentDim)
                     .clickable(onClick = onCoupon)
-                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("KUPON · ${couponPicks.size} SEÇİM", style = LabelMono, color = Ink.accent,
                     modifier = Modifier.weight(1f))
-                Text("ORAN ${fmt(a.combinedOdds)}  ·  ${signedPct(a.edgePct)}  →",
+                Text("${fmt(a.combinedOdds)}   ${signedPct(a.edgePct)}  →",
                     style = LabelMono,
                     color = if (a.edgePct > 0 && !a.sameMatch) Ink.signal else Ink.muted)
             }
@@ -156,40 +162,23 @@ fun MatchListScreen(
 
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 24.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            contentPadding = PaddingValues(bottom = 28.dp)
         ) {
-            item {
-                val valCount = filtered.count { it.hasValue }
-                Row(
-                    Modifier.fillMaxWidth().clip(CardShape).background(Ink.surface)
-                        .border(1.dp, Ink.line, CardShape)
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MiniStat("MAÇ", filtered.size.toString(), Ink.text)
-                    MiniStat("+EV", valCount.toString(),
-                        if (valCount > 0) Ink.signal else Ink.faint)
-                    MiniStat("AÇIK", openBets.toString(),
-                        if (openBets > 0) Ink.text else Ink.faint)
-                    MiniStat("KASA",
-                        if (bankroll.starting > 0) signedPct(bankroll.roi) else "—",
-                        if (bankroll.starting <= 0) Ink.faint
-                        else if (bankroll.roi >= 0) Ink.signal else Ink.caution)
-                }
+            if (!ent.isSubscriber) item {
+                Box(Modifier.padding(16.dp, 12.dp, 16.dp, 2.dp)) { QuotaStrip(quota, onUpgrade) }
             }
-
-            if (!ent.isSubscriber) item { QuotaStrip(quota, onUpgrade) }
-
             if (ent.inGracePeriod) item {
                 Text("BAĞLANTI YOK — KAYITLI ANALİZLER",
                     style = LabelMono, color = Ink.caution,
-                    modifier = Modifier.padding(vertical = 2.dp))
+                    modifier = Modifier.padding(20.dp, 10.dp))
             }
 
             if (filtered.isEmpty()) {
-                if (refreshing) items(5) { Spacer(Modifier.height(2.dp)); Skeleton(Modifier.height(116.dp)) }
+                if (refreshing) items(6) {
+                    Box(Modifier.padding(16.dp, 8.dp)) {
+                        Skeleton(Modifier.fillMaxWidth().height(70.dp))
+                    }
+                }
                 else item {
                     EmptyState(
                         if (league != null) "$league — maç yok" else "Bu aralıkta maç yok",
@@ -201,10 +190,10 @@ fun MatchListScreen(
 
             val live = filtered.filter { it.status == com.ahmet.edge.domain.model.MatchStatus.LIVE }
             if (live.isNotEmpty()) {
-                item(key = "h-live") {
-                    SectionLabel("● CANLI", Modifier.padding(top = 6.dp))
+                item(key = "h-live") { DayDivider("● CANLI", live.size, accent = true) }
+                items(live, key = { it.id }) { m ->
+                    MatchCard(m, showEdge) { onOpen(m.id) }; Hairline()
                 }
-                items(live, key = { it.id }) { m -> MatchCard(m, showEdge) { onOpen(m.id) } }
             }
 
             grouped.forEach { (day, dayMatches) ->
@@ -213,13 +202,83 @@ fun MatchListScreen(
                 }
                 if (notLive.isEmpty()) return@forEach
                 item(key = "h$day") {
-                    SectionLabel(day.format(dayFmt), Modifier.padding(top = 6.dp))
+                    DayDivider(day.format(dayFmt).uppercase(ROOT), notLive.size)
                 }
                 items(notLive, key = { it.id }) { m ->
-                    MatchCard(m, showEdge) { onOpen(m.id) }
+                    MatchCard(m, showEdge) { onOpen(m.id) }; Hairline()
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TerminalHeader(
+    matchCount: Int, valueCount: Int, roi: String?, roiUp: Boolean,
+    openBets: Int, loading: Boolean
+) {
+    Column(
+        Modifier.fillMaxWidth().statusBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(22.dp).clip(RoundedCornerShape(6.dp))
+                    .background(Ink.accent.copy(alpha = 0.14f))
+                    .border(1.dp, Ink.accent.copy(alpha = 0.40f), RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) { Text("λ", style = DataStyle.copy(fontSize = 13.sp), color = Ink.accent) }
+            Spacer(Modifier.width(10.dp))
+            Text("LAMBDA", style = TextStyle(fontFamily = PlexMono,
+                fontWeight = FontWeight.SemiBold, fontSize = 15.sp, letterSpacing = 3.sp),
+                color = Ink.text)
+            Spacer(Modifier.weight(1f))
+            Text(if (loading) "SENK…" else "7 GÜN", style = LabelMono, color = Ink.faint)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).clip(CircleShape)
+                .background(if (valueCount > 0) Ink.accent else Ink.faint))
+            Spacer(Modifier.width(9.dp))
+            HeaderStat("$matchCount", "MAÇ")
+            HeaderSep()
+            HeaderStat("$valueCount", "DEĞER", if (valueCount > 0) Ink.signal else Ink.muted)
+            HeaderSep()
+            HeaderStat("$openBets", "AÇIK", if (openBets > 0) Ink.text else Ink.muted)
+            HeaderSep()
+            HeaderStat(roi ?: "—", "KASA",
+                if (roi == null) Ink.muted else if (roiUp) Ink.signal else Ink.caution)
+        }
+    }
+}
+
+@Composable
+private fun HeaderStat(value: String, label: String, tint: Color = Ink.text) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(value, style = DataStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            color = tint)
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = LabelMono, color = Ink.faint)
+    }
+}
+
+@Composable
+private fun HeaderSep() =
+    Text("·", style = LabelMono, color = Ink.faint,
+        modifier = Modifier.padding(horizontal = 9.dp))
+
+@Composable
+private fun DayDivider(label: String, count: Int, accent: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth().background(Ink.base)
+            .padding(start = 20.dp, end = 20.dp, top = 17.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = LabelMono, color = if (accent) Ink.accent else Ink.muted)
+        Spacer(Modifier.width(12.dp))
+        Box(Modifier.weight(1f).height(1.dp).background(Ink.line))
+        Spacer(Modifier.width(12.dp))
+        Text("$count", style = LabelMono, color = Ink.faint)
     }
 }
 
@@ -252,16 +311,6 @@ private fun LeagueChip(text: String, active: Boolean, onClick: () -> Unit) {
 }
 
 private val ROOT: Locale = Locale.ROOT
-
-@Composable
-private fun MiniStat(label: String, value: String, tint: androidx.compose.ui.graphics.Color) {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(label, style = LabelMono, color = Ink.faint)
-        Spacer(Modifier.width(5.dp))
-        Text(value, style = DataStyle.copy(fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold), color = tint)
-    }
-}
 
 @Composable
 fun ScreenHeader(title: String, right: String? = null, sub: String? = null) {
@@ -311,80 +360,126 @@ private fun QuotaStrip(remaining: Int, onUpgrade: () -> Unit) {
 
 @Composable
 fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
-    val (h, d, a) = remember(m.id, m.lambdaHome, m.lambdaAway) { oneXtwo(m) }
-    val kickoff = remember(m.id) { m.kickoff.atZone(ZoneId.systemDefault()).format(timeFmt) }
-    val pick = when (maxOf(h, d, a)) { h -> 0; d -> 1; else -> 2 }
-    val homeName = m.home.shortName.ifBlank { m.home.name }
-    val awayName = m.away.shortName.ifBlank { m.away.name }
+    val (h, d, a) = remember(m.id, m.pHome, m.pDraw, m.pAway, m.lambdaHome) { oneXtwo(m) }
+    val pickIdx = when (maxOf(h, d, a)) { h -> 0; d -> 1; else -> 2 }
+    val pickProb = maxOf(h, d, a)
+    val pickLabel = when (pickIdx) { 0 -> "1"; 1 -> "X"; else -> "2" }
     val isLive = m.status == com.ahmet.edge.domain.model.MatchStatus.LIVE
     val hasVal = showEdge && m.hasValue && m.bestEdgePct != null
+    val kickoff = remember(m.id) { m.kickoff.atZone(ZoneId.systemDefault()).format(timeFmt) }
+    val homeName = m.home.shortName.ifBlank { m.home.name }
+    val awayName = m.away.shortName.ifBlank { m.away.name }
+    val (hc, ac) = remember(m.id) { teamCodes(homeName, awayName) }
 
-    Panel(onClick = onClick, padding = PaddingValues(14.dp, 11.dp, 14.dp, 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(m.league.name.uppercase(ROOT), style = LabelMono,
-                color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false))
-            Spacer(Modifier.width(6.dp))
-            if (isLive) {
-                Box(Modifier.size(5.dp).background(Ink.caution,
-                    androidx.compose.foundation.shape.CircleShape))
-                Spacer(Modifier.width(5.dp))
-                Text("${m.minute ?: 0}'", style = DataStyle.copy(fontSize = 11.sp),
-                    color = Ink.caution)
-            } else {
-                Text(kickoff, style = DataStyle.copy(fontSize = 11.sp), color = Ink.muted)
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .height(IntrinsicSize.Min)
+            .background(if (hasVal) Ink.accent.copy(alpha = 0.045f) else Color.Transparent)
+    ) {
+        Box(
+            Modifier.width(3.dp).fillMaxHeight().background(
+                when {
+                    hasVal -> Ink.accent
+                    isLive -> Ink.caution
+                    else -> Color.Transparent
+                }
+            )
+        )
+        Column(
+            Modifier.weight(1f).padding(start = 17.dp, top = 13.dp, bottom = 13.dp, end = 12.dp)
+        ) {
+            Text(m.league.name.uppercase(ROOT), style = LabelMono.copy(fontSize = 9.sp),
+                color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(8.dp))
+            TeamLine(hc, homeName, pickIdx == 0, if (isLive) m.homeGoals else null)
+            Spacer(Modifier.height(5.dp))
+            TeamLine(ac, awayName, pickIdx == 2, if (isLive) m.awayGoals else null)
+            Spacer(Modifier.height(10.dp))
+            SegBar(h, d, a)
+        }
+        Column(
+            Modifier.fillMaxHeight().width(60.dp)
+                .padding(end = 18.dp, top = 13.dp, bottom = 13.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(if (isLive) "${m.minute ?: 0}'" else kickoff,
+                style = LabelMono, color = if (isLive) Ink.caution else Ink.faint)
+            if (!isLive) {
+                Spacer(Modifier.height(7.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(pickLabel, style = LabelMono.copy(fontSize = 11.sp), color = Ink.accent)
+                    Spacer(Modifier.width(3.dp))
+                    Text(pct0(pickProb), style = DataStyle.copy(fontSize = 19.sp,
+                        fontWeight = FontWeight.SemiBold), color = Ink.text)
+                }
             }
-            Spacer(Modifier.weight(1f))
-            ConfidenceMeter(m.modelConfidence)
-        }
-
-        Spacer(Modifier.height(10.dp))
-        TeamRow(m.home.crestUrl, homeName, pick == 0, if (isLive) m.homeGoals else null)
-        Spacer(Modifier.height(6.dp))
-        TeamRow(m.away.crestUrl, awayName, pick == 2, if (isLive) m.awayGoals else null)
-
-        Spacer(Modifier.height(11.dp))
-        ProbBar3(h, d, a, height = 6.dp)
-        Spacer(Modifier.height(7.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            ProbInline("1", h, pick == 0)
-            Spacer(Modifier.width(18.dp))
-            ProbInline("X", d, pick == 1)
-            Spacer(Modifier.width(18.dp))
-            ProbInline("2", a, pick == 2)
-            Spacer(Modifier.weight(1f))
-            if (hasVal) EdgeTag(m.bestEdgePct!!)
+            if (hasVal) {
+                Spacer(Modifier.height(4.dp))
+                Text(signedPct(m.bestEdgePct!!),
+                    style = LabelMono.copy(fontSize = 11.sp), color = Ink.signal)
+            }
         }
     }
 }
 
 @Composable
-private fun TeamRow(crest: String?, name: String, isPick: Boolean, score: Int?) {
+private fun TeamLine(code: String, name: String, isPick: Boolean, score: Int?) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        TeamCrest(crest, name, 22.dp)
-        Spacer(Modifier.width(9.dp))
-        Text(
-            name, style = MaterialTheme.typography.titleMedium,
+        Box(
+            Modifier.width(34.dp).clip(RoundedCornerShape(3.dp))
+                .background(if (isPick) Ink.accent.copy(alpha = 0.16f) else Ink.raised)
+                .padding(vertical = 3.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(code, style = LabelMono.copy(fontSize = 9.sp, letterSpacing = 0.4.sp),
+                color = if (isPick) Ink.accent else Ink.muted, maxLines = 1)
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(name, style = MaterialTheme.typography.titleMedium,
             color = if (isPick) Ink.text else Ink.muted,
-            fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-        )
-        if (score != null) Text(
-            "$score", style = DataStyle.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-            color = Ink.text
-        )
+            fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (score != null) Text("$score",
+            style = DataStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+            color = Ink.text)
     }
 }
 
+/** İnce, 2px boşluklu segment çubuğu — ev / beraberlik / deplasman. */
 @Composable
-private fun ProbInline(k: String, v: Double, isPick: Boolean) {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(k, style = LabelMono, color = if (isPick) Ink.accent else Ink.faint)
-        Spacer(Modifier.width(4.dp))
-        Text(pct0(v), style = DataStyle.copy(fontSize = 13.sp,
-            fontWeight = if (isPick) FontWeight.SemiBold else FontWeight.Medium),
-            color = if (isPick) Ink.text else Ink.muted)
+private fun SegBar(h: Double, d: Double, a: Double) {
+    Row(Modifier.fillMaxWidth().height(3.dp)) {
+        Box(Modifier.weight(h.toFloat().coerceAtLeast(0.001f)).fillMaxHeight().background(Ink.home))
+        Spacer(Modifier.width(2.dp))
+        Box(Modifier.weight(d.toFloat().coerceAtLeast(0.001f)).fillMaxHeight().background(Ink.draw))
+        Spacer(Modifier.width(2.dp))
+        Box(Modifier.weight(a.toFloat().coerceAtLeast(0.001f)).fillMaxHeight().background(Ink.away))
     }
+}
+
+/** "Queens Park Rangers" -> QPR, "Cardiff City" -> CAR, "Wrexham" -> WRE. */
+private fun teamCode(name: String): String {
+    val w = name.uppercase(ROOT)
+        .replace(Regex("[^A-ZÇĞİÖŞÜ ]"), " ")
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() && it !in setOf("FC", "AFC", "CF", "SC", "AC", "CD", "SV", "IF", "BK", "CLUB", "THE") }
+    return when {
+        w.isEmpty() -> name.filter { it.isLetter() }.take(3).uppercase(ROOT).ifBlank { "?" }
+        w.size >= 3 -> w.joinToString("") { it.take(1) }.take(4)
+        else -> w[0].take(3)
+    }
+}
+
+private fun teamCodes(home: String, away: String): Pair<String, String> {
+    val h = teamCode(home); val a = teamCode(away)
+    if (!h.equals(a, ignoreCase = true)) return h to a
+    fun alt(n: String): String {
+        val w = n.uppercase(ROOT).replace(Regex("[^A-ZÇĞİÖŞÜ ]"), " ")
+            .split(Regex("\\s+")).filter { it.isNotBlank() }
+        return if (w.size >= 2) w[0].take(1) + w[1].take(2) else w.getOrElse(0) { n }.take(4)
+    }
+    return alt(home) to alt(away)
 }
 
 // ---------------------------------------------------------------- Değer tablosu
@@ -416,12 +511,14 @@ fun ValueBoardScreen(
             return
         }
 
+        Hairline()
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            items(matches, key = { it.id }) { m -> MatchCard(m, true) { onOpen(m.id) } }
+            items(matches, key = { it.id }) { m ->
+                MatchCard(m, true) { onOpen(m.id) }; Hairline()
+            }
             if (matches.isEmpty()) item {
                 EmptyState(
                     "Yaklaşan maç yok",
