@@ -78,7 +78,7 @@ def build_narrative(m: dict, home: str, away: str) -> str:
         lines.append(f"Model {fav} tarafını %{fp*100:.0f} ile öne alıyor. Dağılım: {oth}.")
 
     lines.append(
-        f"Beklenen gol çizgisi {lh:.2f} – {la:.2f}; {_tempo(lh, la)} tempolu bir maç. "
+        f"Beklenen gol toplamı ~{(lh + la):.1f}; {_tempo(lh, la)} tempolu bir maç. "
         f"2.5 üst %{(m.get('p_over25') or 0.5)*100:.0f}, KG var %{(m.get('p_btts') or 0.5)*100:.0f}.")
 
     mh, md, ma = m.get("market_home"), m.get("market_draw"), m.get("market_away")
