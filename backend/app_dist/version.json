@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  19,
-    "versionName":  "0.3.9",
-    "notes":  "Tum dunyadaki canli maclar listede (sadece 9 lig degil) + model olmayan liglerde canli skor"
+    "versionCode":  20,
+    "versionName":  "0.3.10",
+    "notes":  "Analiz kartina oran hareketi satiri (acilis -\u003e son oran, para hangi tarafa)"
 }
