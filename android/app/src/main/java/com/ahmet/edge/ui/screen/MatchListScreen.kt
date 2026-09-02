@@ -385,6 +385,7 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
     val pickProb = maxOf(h, d, a)
     val pickLabel = when (pickIdx) { 0 -> "1"; 1 -> "X"; else -> "2" }
     val isLive = m.status == com.ahmet.edge.domain.model.MatchStatus.LIVE
+    val hasModel = m.pHome != null
     val hasVal = showEdge && m.hasValue && m.bestEdgePct != null
     val kickoff = remember(m.id) { m.kickoff.atZone(ZoneId.systemDefault()).format(timeFmt) }
     val homeName = m.home.shortName.ifBlank { m.home.name }
@@ -410,11 +411,17 @@ fun MatchCard(m: Match, showEdge: Boolean, onClick: () -> Unit) {
             Text(m.league.name.uppercase(ROOT), style = LabelMono.copy(fontSize = 9.sp),
                 color = Ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(8.dp))
-            TeamLine(hc, homeColor, homeName, pickIdx == 0, if (isLive) m.homeGoals else null)
+            TeamLine(hc, homeColor, homeName, hasModel && pickIdx == 0, if (isLive) m.homeGoals else null)
             Spacer(Modifier.height(5.dp))
-            TeamLine(ac, awayColor, awayName, pickIdx == 2, if (isLive) m.awayGoals else null)
-            Spacer(Modifier.height(10.dp))
-            SegBar(h, d, a, homeColor)
+            TeamLine(ac, awayColor, awayName, hasModel && pickIdx == 2, if (isLive) m.awayGoals else null)
+            if (hasModel) {
+                Spacer(Modifier.height(10.dp))
+                SegBar(h, d, a, homeColor)
+            } else if (isLive) {
+                Spacer(Modifier.height(9.dp))
+                Text("CANLI SKOR · model bu lig için kalibre değil",
+                    style = LabelMono.copy(fontSize = 8.5.sp), color = Ink.faint, maxLines = 1)
+            }
         }
         Column(
             Modifier.fillMaxHeight().width(84.dp)

@@ -183,32 +183,59 @@ _live_cache: list = []
 _live_at = [0.0]
 
 
-def live_matches() -> list[dict]:
-    """Şu an oynanan, takip edilen liglerdeki maçlar (skor + dakika). ~75s önbellek."""
+_live_all_cache: list[dict] = []
+_live_all_at = [0.0]
+# canlı yol kendi bütçesi (live=all tek istek; 100s önbellek -> gün ~90 istek)
+_live_req = [dt.date.today(), 0]
+_LIVE_MAX_DAY = int(os.environ.get("APIFOOTBALL_LIVE_MAX_DAY", "120"))
+
+
+def _live_budget_ok() -> bool:
+    today = dt.date.today()
+    if _live_req[0] != today:
+        _live_req[0], _live_req[1] = today, 0
+    return _live_req[1] < _LIVE_MAX_DAY
+
+
+def _fetch_live_raw() -> list[dict] | None:
+    """/fixtures?live=all — dünyadaki tüm canlı maçlar. 100s önbellek."""
     now = time.monotonic()
-    if _live_cache and now - _live_at[0] < 75:
-        return _live_cache
-    if not enabled() or not _budget_ok():
-        return _live_cache
+    if _live_all_cache and now - _live_all_at[0] < 100:
+        return _live_all_cache
+    if not enabled() or not _live_budget_ok():
+        return _live_all_cache or None
     data = _get("/fixtures", {"live": "all"})
     if data is None:
-        return _live_cache
-    out = []
+        return _live_all_cache or None
+    _live_req[1] += 1
+    rows = []
     for f in data.get("response", []):
-        lg = f.get("league", {})
-        if lg.get("id") not in TRACKED:
-            continue
-        fx, tm, go, st = f["fixture"], f["teams"], f.get("goals", {}), f["fixture"]["status"]
-        out.append({
-            "af_id": fx["id"], "code": LEAGUE_ID_TO_CODE[lg["id"]],
+        lg = f.get("league", {}) or {}
+        fx, tm, go = f["fixture"], f["teams"], f.get("goals", {}) or {}
+        st = fx.get("status", {}) or {}
+        rows.append({
+            "af_id": fx["id"], "af_league_id": lg.get("id"),
+            "league_name": lg.get("name") or "", "country": lg.get("country") or "",
+            "code": LEAGUE_ID_TO_CODE.get(lg.get("id")),
             "home": tm["home"]["name"], "away": tm["away"]["name"],
             "home_id": tm["home"].get("id"), "away_id": tm["away"].get("id"),
             "hg": go.get("home") or 0, "ag": go.get("away") or 0,
             "minute": st.get("elapsed") or 0, "phase": st.get("short", "1H"),
         })
-    _live_cache[:] = out
-    _live_at[0] = now
-    return out
+    _live_all_cache[:] = rows
+    _live_all_at[0] = now
+    return rows
+
+
+def live_matches() -> list[dict]:
+    """Takip edilen liglerdeki canlı maçlar (model overlay için)."""
+    rows = _fetch_live_raw() or []
+    return [r for r in rows if r.get("code")]
+
+
+def live_matches_all() -> list[dict]:
+    """Dünyadaki tüm canlı maçlar (lig adı + ülke ile)."""
+    return _fetch_live_raw() or []
 
 
 # ---------------------------------------------------------------- sakatlıklar

@@ -286,6 +286,7 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
 
     _enrich(matches, teams, list(competitions))
     _enrich_live(matches, teams)
+    _append_live_extras(matches, leagues, teams)
 
     # /analysis metni için son durumu sakla
     _tn = {t["id"]: (t.get("name") or "") for t in teams.values()}
@@ -434,6 +435,77 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
                     m["best_odds"] = round(b[sel], 2)
                     # >%3: gürültü/bayat çizgi payını düşer, gerçekten oynanabilir
                     m["has_value"] = e > 0.03
+
+
+def _append_live_extras(matches: list[dict], leagues: dict[int, dict],
+                        teams: dict[int, dict]) -> None:
+    """football-data'da olmayan (tüm dünya) canlı maçları listeye ekler.
+    Model kalibre olan liglerde maç-içi olasılık da hesaplanır; değilse sadece skor."""
+    try:
+        from . import apifootball as af
+        rows = af.live_matches_all()
+    except Exception:
+        return
+    if not rows:
+        return
+    have = {
+        (_keyify(teams.get(m["home_team_id"], {}).get("name", "")),
+         _keyify(teams.get(m["away_team_id"], {}).get("name", "")))
+        for m in matches
+    }
+    # model kalibre olan ligler önce; en fazla 30 canlı ekstra
+    rows = sorted(rows, key=lambda r: (0 if r.get("code") else 1, r.get("league_name") or ""))
+    added = 0
+    for r in rows:
+        if added >= 30:
+            break
+        key = (_keyify(r["home"]), _keyify(r["away"]))
+        if key in have:
+            continue
+        have.add(key)
+        added += 1
+        mid = 900_000_000 + int(r["af_id"])
+        lg_id = 800_000 + int(r.get("af_league_id") or 0)
+        if lg_id not in leagues:
+            nm = r.get("league_name") or "Canlı"
+            co = r.get("country") or ""
+            leagues[lg_id] = {
+                "id": lg_id, "name": (f"{nm} · {co}" if co and co not in nm else nm),
+                "country": co, "tier": 3, "data_quality": 0.4, "strength_coef": 1.0,
+            }
+        ht = 700_000_000 + (int(r["home_id"]) if r.get("home_id")
+                            else abs(hash(r["home"])) % 5_000_000)
+        at = 700_000_000 + (int(r["away_id"]) if r.get("away_id")
+                            else abs(hash(r["away"])) % 5_000_000)
+        teams.setdefault(ht, {"id": ht, "name": r["home"], "short_name": r["home"],
+                              "crest_url": None})
+        teams.setdefault(at, {"id": at, "name": r["away"], "short_name": r["away"],
+                              "crest_url": None})
+        d = {
+            "id": mid, "league_id": lg_id, "home_team_id": ht, "away_team_id": at,
+            "kickoff": dt.datetime.now(dt.timezone.utc).isoformat(), "status": "LIVE",
+            "home_goals": r["hg"], "away_goals": r["ag"], "minute": r["minute"],
+            "rho": -0.03, "model_confidence": 0.30,
+            "lambda_home": None, "lambda_away": None,
+            "p_home": None, "p_draw": None, "p_away": None,
+            "p_over25": None, "p_btts": None,
+            "best_edge_pct": None, "best_edge_sel": None, "best_odds": None,
+            "has_value": False, "injuries_home": 0, "injuries_away": 0,
+        }
+        code = r.get("code")
+        if code:
+            try:
+                ip = model.inplay(code, r["home"], r["away"],
+                                  r["hg"], r["ag"], r["minute"])
+                d.update(
+                    lambda_home=ip.get("lambda_home"), lambda_away=ip.get("lambda_away"),
+                    p_home=ip["p_home"], p_draw=ip["p_draw"], p_away=ip["p_away"],
+                    p_over25=ip.get("p_over25"), model_confidence=0.50,
+                )
+                _MATCH_CTX[mid] = (code, r["home"], r["away"])
+            except Exception:
+                pass
+        matches.append(d)
 
 
 def _enrich_live(matches: list[dict], teams: dict[int, dict]) -> None:
