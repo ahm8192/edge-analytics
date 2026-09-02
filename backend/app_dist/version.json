@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  16,
-    "versionName":  "0.3.6",
-    "notes":  "Matchday tasarim: takim renkleri, arma rozetleri, Barlow yazi tipi, yayin skorbordu satirlari"
+    "versionCode":  17,
+    "versionName":  "0.3.7",
+    "notes":  "App ikonu yenilendi + mac detayi yayin tasarimi (arma karsi arma, skorbord tahmin)"
 }
