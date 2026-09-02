@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  9,
-    "versionName":  "0.2.9",
-    "notes":  "Canli mac analizi: oynanan maclar skor + dakika + mac-ici olasilikla listenin ustunde."
+    "versionCode":  11,
+    "versionName":  "0.3.1",
+    "notes":  "Gercekci +EV (line-shop vs Pinnacle), model-piyasa harmani, sistem cubugu ikonlari, detay ekran duzeni"
 }
