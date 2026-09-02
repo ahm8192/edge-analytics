@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  18,
-    "versionName":  "0.3.8",
-    "notes":  "Yapay zeka yazili mac analizi (detay ekraninda) + canli mac yoksa \u0027siradaki HH:MM\u0027 bilgisi"
+    "versionCode":  19,
+    "versionName":  "0.3.9",
+    "notes":  "Tum dunyadaki canli maclar listede (sadece 9 lig degil) + model olmayan liglerde canli skor"
 }
