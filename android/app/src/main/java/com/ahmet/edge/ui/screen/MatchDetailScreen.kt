@@ -84,6 +84,21 @@ fun MatchDetailScreen(
             (summary?.live ?: summary?.summary)?.let { txt ->
                 item {
                     val isLive = summary?.live != null
+                    val moveTxt = remember(movement) {
+                        if (movement.size >= 2) {
+                            val f = movement.first().price
+                            val l = movement.last().price
+                            if (f > 0 && kotlin.math.abs(l - f) / f >= 0.02) {
+                                val d = (l - f) / f * 100
+                                val yön = if (l < f)
+                                    "kısalıyor — para bu tarafa geliyor, değer eriyor"
+                                else
+                                    "açılıyor — para bu taraftan çekiliyor"
+                                "Oran hareketi: %.2f → %.2f (%+.0f%%), %s.".format(
+                                    java.util.Locale.US, f, l, d, yön)
+                            } else null
+                        } else null
+                    }
                     Column(Modifier.fillMaxWidth()) {
                         SectionLabel(if (isLive) "Canlı analiz" else "Maç analizi")
                         Column(
@@ -97,6 +112,11 @@ fun MatchDetailScreen(
                                 .padding(14.dp)
                         ) {
                             Text(txt, style = MaterialTheme.typography.bodyMedium, color = Ink.text)
+                            moveTxt?.let {
+                                Spacer(Modifier.height(9.dp))
+                                Text(it, style = MaterialTheme.typography.bodyMedium,
+                                    color = Ink.accent)
+                            }
                         }
                     }
                 }
