@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  13,
-    "versionName":  "0.3.3",
-    "notes":  "Model leani yumusatildi, sahte buyuk kenar sayilari kalkti"
+    "versionCode":  14,
+    "versionName":  "0.3.4",
+    "notes":  "Mac listesi bastan tasarlandi - terminal tablosu, takim kodlari, deger rayi"
 }
