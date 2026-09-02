@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  11,
-    "versionName":  "0.3.1",
-    "notes":  "Gercekci +EV (line-shop vs Pinnacle), model-piyasa harmani, sistem cubugu ikonlari, detay ekran duzeni"
+    "versionCode":  12,
+    "versionName":  "0.3.2",
+    "notes":  "Detay ekrani: segmentli 1/X/2 secici, temiz kenar payi satirlari, tam ekran dolgu"
 }
