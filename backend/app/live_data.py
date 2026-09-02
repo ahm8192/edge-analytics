@@ -107,9 +107,9 @@ def build_narrative(m: dict, home: str, away: str) -> str:
         lines.append("Oynanabilir bir fiyat farkı yok; beklemede kal.")
 
     ih, ia = m.get("injuries_home") or 0, m.get("injuries_away") or 0
-    if ih >= 2 or ia >= 2:
+    n = max(ih, ia)
+    if 2 <= n <= 6:  # 6 üstü genelde veri gürültüsü, metne koyma
         who = home if ih >= ia else away
-        n = max(ih, ia)
         lines.append(f"{who} kadrosunda {n} önemli eksik var; hücum beklentisi buna göre kısıldı.")
 
     lines.append(
@@ -288,8 +288,8 @@ def fetch_matches(date_from: str, date_to: str, competitions: tuple[str, ...] | 
     _enrich_live(matches, teams)
     _append_live_extras(matches, leagues, teams)
 
-    # /analysis metni için son durumu sakla
-    _tn = {t["id"]: (t.get("name") or "") for t in teams.values()}
+    # /analysis metni için son durumu sakla (prose'da kısa ad daha okunur)
+    _tn = {t["id"]: (t.get("short_name") or t.get("name") or "") for t in teams.values()}
     for _m in matches:
         _MATCH_SNAP[int(_m["id"])] = {
             "home": _tn.get(_m["home_team_id"], ""), "away": _tn.get(_m["away_team_id"], ""),
@@ -387,8 +387,9 @@ def _enrich(matches: list[dict], teams: dict[int, dict], competitions: list[str]
         af_fx = af_idx.get((hk, ak, d))
         if af_fx:
             inj = injw.get(af_fx["af_id"], {})
-            ih = inj.get(af_fx.get("home_id"), 0)
-            ia = inj.get(af_fx.get("away_id"), 0)
+            # API-Football bazen pencere içi tüm kayıtları sayıyor -> 4 ile sınırla
+            ih = min(int(inj.get(af_fx.get("home_id"), 0) or 0), 4)
+            ia = min(int(inj.get(af_fx.get("away_id"), 0) or 0), 4)
             if code and (ih >= 2 or ia >= 2):
                 p = model.probs(code, hn, an, inj_home=ih, inj_away=ia)
                 m.update({"p_home": p["p_home"], "p_draw": p["p_draw"], "p_away": p["p_away"],
@@ -453,7 +454,12 @@ def _append_live_extras(matches: list[dict], leagues: dict[int, dict],
          _keyify(teams.get(m["away_team_id"], {}).get("name", "")))
         for m in matches
     }
-    # model kalibre olan ligler önce; en fazla 30 canlı ekstra
+    # saygın ligler + model kalibre olanlar; 3./4. lig vb. elenir
+    try:
+        from .apifootball import LIVE_ALLOW
+    except Exception:
+        LIVE_ALLOW = set()
+    rows = [r for r in rows if r.get("code") or r.get("af_league_id") in LIVE_ALLOW]
     rows = sorted(rows, key=lambda r: (0 if r.get("code") else 1, r.get("league_name") or ""))
     added = 0
     for r in rows:

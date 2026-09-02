@@ -24,6 +24,28 @@ LEAGUE_ID_TO_CODE = {
 }
 TRACKED = set(LEAGUE_ID_TO_CODE)
 
+# Canlı listede gösterilecek saygın ligler/kupalar (API-Football lig id).
+# 3./4. lig, rezerv, gençlik, kadın-alt ligleri elenir.
+LIVE_ALLOW = {
+    39, 40, 41, 45, 48,                     # İngiltere: PL, Champ, L1, FA Cup, EFL Cup
+    78, 79, 81,                             # Almanya
+    135, 136, 137,                          # İtalya
+    140, 141, 143,                          # İspanya
+    61, 62, 66,                             # Fransa
+    88, 89, 90,                             # Hollanda
+    94, 95, 96,                             # Portekiz
+    71, 72, 73, 13, 11,                     # Brezilya + Libertadores/Sudamericana
+    128, 130,                               # Arjantin
+    203, 204, 206,                          # Türkiye
+    144,                                    # Belçika
+    179, 180,                               # İskoçya
+    197, 207, 218, 106, 119, 103, 113,      # Yunanistan/İsviçre/Avusturya/Polonya/Danimarka/Norveç/İsveç
+    235,                                    # Rusya
+    253, 262, 188,                          # MLS / Liga MX / A-League
+    98, 292, 169, 307,                      # Japonya / Kore / Çin / Suudi
+    2, 3, 848, 15, 1, 4, 9,                 # UEFA CL/EL/Conf + FIFA CWC / WC / Euro / Copa America
+}
+
 _TTL = float(os.environ.get("APIFOOTBALL_TTL", "21600"))     # 6 saat
 _cache: dict[str, tuple[float, object]] = {}
 _lock = threading.Lock()
