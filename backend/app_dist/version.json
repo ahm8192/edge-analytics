@@ -1,7 +1,7 @@
 {
     "mandatory":  false,
     "url":  "https://edge-analytics-api.onrender.com/app/download",
-    "versionCode":  17,
-    "versionName":  "0.3.7",
-    "notes":  "App ikonu yenilendi + mac detayi yayin tasarimi (arma karsi arma, skorbord tahmin)"
+    "versionCode":  18,
+    "versionName":  "0.3.8",
+    "notes":  "Yapay zeka yazili mac analizi (detay ekraninda) + canli mac yoksa \u0027siradaki HH:MM\u0027 bilgisi"
 }
